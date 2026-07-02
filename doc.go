@@ -1,0 +1,2 @@
+// Package ifcat
+package ifcat
