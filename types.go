@@ -33,12 +33,3 @@ type Attribute struct {
 
 // Vector each input data is consisted of several features.
 type Vector map[string]Attribute
-
-//
-// func NewNumerical(v []float64) Attribute {
-// 	return Attribute{Type: TypeNumerical, Value: v}
-// }
-//
-// func NewCategorical(id []float64) Attribute {
-// 	return Attribute{Type: TypeCategorical, Value: id}
-// }
