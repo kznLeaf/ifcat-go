@@ -1,32 +1,44 @@
 package ifcat
 
-type FeatureType byte
+type AttributeType byte
 
 const (
-	TypeNumerical   FeatureType = iota // 0: numerical
-	TypeCategorical                    // 1: categorical
-	TypeText                           // 2: text
+	TypeNumerical   AttributeType = iota // 0: numerical
+	TypeCategorical                      // 1: categorical
+	TypeBool                             // 2: Bool
 )
 
-type Feature struct {
-	Type FeatureType
+type Operator byte
 
-	NumValue float64
-	CatValue int
-	StrValue string
+const (
+	Less    Operator = 0
+	Equal   Operator = 1
+	Greater Operator = 2
+)
+
+var AttNameType = map[string]AttributeType{
+	"rooted": TypeCategorical,
 }
 
-// Vector input data
-type Vector []Feature
+// Q is a list of attribute in X
+// TODO: init Q
+var Q []Attribute
 
-func NewNumerical(v float64) Feature {
-	return Feature{Type: TypeNumerical, NumValue: v}
+type Attribute struct {
+	Name string
+	Type AttributeType
+	// Value can represent both categorical and numerical values.
+	Value float64
 }
 
-func NewCategorical(id int) Feature {
-	return Feature{Type: TypeCategorical, CatValue: id}
-}
+// Vector each input data is consisted of several features.
+type Vector map[string]Attribute
 
-func NewText(v string) Feature {
-	return Feature{Type: TypeText, StrValue: v}
-}
+//
+// func NewNumerical(v []float64) Attribute {
+// 	return Attribute{Type: TypeNumerical, Value: v}
+// }
+//
+// func NewCategorical(id []float64) Attribute {
+// 	return Attribute{Type: TypeCategorical, Value: id}
+// }
