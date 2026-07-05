@@ -2,7 +2,7 @@ package ifcat
 
 import (
 	"math"
-	"math/rand"
+	"math/rand/v2"
 )
 
 // Euler is an Euler's constant as described in algorithm specification
@@ -16,13 +16,13 @@ type Forest struct {
 	AnomalyRatio    float64
 }
 
-// NewForest returns a set of iTrees
+// NewForest initializes an empty forest.
 //
 //	t: number of trees
 func NewForest(t int, subsamplingSize int) *Forest {
 	// Initialize Forest
 	heightLimit := math.Ceil(math.Log2(float64(subsamplingSize)))
-	trees := make([]Tree, 0, t)
+	trees := make([]Tree, t)
 
 	f := &Forest{
 		Trees:           trees,
@@ -35,26 +35,31 @@ func NewForest(t int, subsamplingSize int) *Forest {
 }
 
 // Train creates the collection of trees in the forest.
-// The total number of `trainSet` must be SubsamplingSize * TreeCount since
-// `trainSet` represents the subsampled dataset instead of the whole dataset.
 func (f *Forest) Train(trainSet []Vector) {
 	n := len(trainSet)
-	if n < f.SubsamplingSize*f.TreeCount {
-		return
-	}
+	// if n < f.SubsamplingSize*f.TreeCount {
+	// 	return
+	// }
 
-	indices := rand.Perm(n)
-
-	for i := 0; i < n; i += f.SubsamplingSize {
-		end := min(i+f.SubsamplingSize, n)
-		batchIndices := indices[i:end]
-		batchData := make([]Vector, len(batchIndices))
-		for j, idx := range batchIndices {
-			batchData[j] = trainSet[idx]
+	for i := range f.TreeCount {
+		indices := rand.Perm(n)
+		samples := make([]Vector, f.SubsamplingSize)
+		for i := range f.SubsamplingSize {
+			samples[i] = trainSet[indices[i]]
 		}
-		newTree := NewTree(batchData, f.HeightLimit)
-		f.Trees = append(f.Trees, *newTree)
+		f.Trees[i] = *NewTree(samples, f.HeightLimit)
 	}
+
+	// for i := 0; i < n; i += f.SubsamplingSize {
+	// 	end := min(i+f.SubsamplingSize, n)
+	// 	batchIndices := indices[i:end]
+	// 	batchData := make([]Vector, len(batchIndices))
+	// 	for j, idx := range batchIndices {
+	// 		batchData[j] = trainSet[idx]
+	// 	}
+	// 	newTree := NewTree(batchData, f.HeightLimit)
+	// 	f.Trees = append(f.Trees, *newTree)
+	// }
 }
 
 // AnomalyScore computes the average path length of x from the ensemble of trees,

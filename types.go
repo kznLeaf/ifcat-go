@@ -21,7 +21,8 @@ type Schema map[AttributeMeta]int
 
 // GlobalSchema defines the field types and index positions for each data.
 var GlobalSchema Schema = map[AttributeMeta]int{
-	{Name: "rooted", Type: TypeBool}: 1,
+	{Name: "X", Type: TypeNumerical}: 0,
+	{Name: "Y", Type: TypeNumerical}: 1,
 }
 var GlobalSchemaIdxToName map[int]AttributeMeta
 
@@ -33,7 +34,7 @@ func init() {
 	}
 }
 
-type Dataset struct {
-	Schema  Schema
-	Vectors []Vector
-}
+// type Dataset struct {
+// 	Schema  Schema
+// 	Vectors []Vector
+// }
