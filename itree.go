@@ -4,7 +4,8 @@ import "math/rand"
 
 // Tree is base structure for the iTree
 type Tree struct {
-	Root *Node
+	*Forest
+	root *Node
 }
 
 // Node is a structure for iNode
@@ -20,28 +21,25 @@ type Node struct {
 	Size int
 }
 
-func NewTree(X []Vector, heightLimit int) *Tree {
-	root := buildTree(X, 0, heightLimit)
-	return &Tree{
-		Root: root,
-	}
+func (t *Tree) Build(X []Vector) {
+	t.root = buildNode(X, 0, t.heightLimit, t.localSchema)
 }
 
-// buildTree builds an itree. Returns the root node.
+// buildNode builds an itree. Returns the root node.
 //
 //	X: input dataset
 //	e: current tree height
 //	l: height limit
-func buildTree(X []Vector, e int, l int) *Node {
+func buildNode(X []Vector, e int, l int, ls localSchema) *Node {
 	if e >= l || len(X) <= 1 {
 		exNode := &Node{Size: len(X)}
 		return exNode
 	}
-	q := randAtt()
-	Xl, Xr, splitValue := filter(X, q)
+	q := randAtt(ls.IdxToName)
+	Xl, Xr, splitValue := filter(X, q, ls)
 	inNode := &Node{
-		Left:       buildTree(Xl, e+1, l),
-		Right:      buildTree(Xr, e+1, l),
+		Left:       buildNode(Xl, e+1, l, ls),
+		Right:      buildNode(Xr, e+1, l, ls),
 		SplitAtt:   q,
 		SplitValue: splitValue,
 	}
@@ -49,16 +47,16 @@ func buildTree(X []Vector, e int, l int) *Node {
 }
 
 // randAtt randomly select an attribute q from Q
-func randAtt() AttributeMeta {
-	return globalSchemaIdxToName[rand.Intn(len(globalSchema))]
+func randAtt(m map[int]AttributeMeta) AttributeMeta {
+	return m[rand.Intn(len(m))]
 }
 
 // filter filters the dataset X based on the conditional expression.
 // If the data meets the condition, it would be put into Xl, else Xr.
 //
 // returns the sub-dataset for left tree, right tree and the SplitValue on current inNode.
-func filter(X []Vector, q AttributeMeta) ([]Vector, []Vector, []float64) {
-	attIdx := globalSchema[q]
+func filter(X []Vector, q AttributeMeta, ls localSchema) ([]Vector, []Vector, []float64) {
+	attIdx := ls.NameToIdx[q]
 	attType := q.Type
 
 	Xl := make([]Vector, 0, len(X))

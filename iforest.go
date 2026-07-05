@@ -9,6 +9,8 @@ import (
 const Euler float64 = 0.5772156649
 
 type Forest struct {
+	localSchema
+
 	trees           []Tree
 	subsamplingSize int
 	treeCount       int
@@ -16,8 +18,40 @@ type Forest struct {
 	anomalyRatio    float64
 }
 
+type localSchema struct {
+	// NameToIdx maps each attribute metadata to its slice index
+	NameToIdx map[AttributeMeta]int
+	// IdxToName provides an lookup to efficiently select
+	// a random attribute during node splitting
+	IdxToName map[int]AttributeMeta
+}
+
 func (f *Forest) SetAnomalyThreshold(a float64) {
 	f.anomalyRatio = a
+}
+
+// AddField adds one field to globalSchema. This method is not thread safe.
+func (f *Forest) AddField(name string, attrType AttributeType) {
+	if f.NameToIdx == nil {
+		f.NameToIdx = make(Schema)
+	}
+
+	if f.IdxToName == nil {
+		f.IdxToName = make(map[int]AttributeMeta)
+	}
+
+	meta := AttributeMeta{
+		Name: name,
+		Type: attrType,
+	}
+
+	if _, exists := f.NameToIdx[meta]; exists {
+		return
+	}
+
+	nextIndex := len(f.NameToIdx)
+	f.NameToIdx[meta] = nextIndex
+	f.IdxToName[nextIndex] = meta
 }
 
 // NewForest initializes and returns an empty Forest ready for training.
@@ -33,19 +67,20 @@ func (f *Forest) SetAnomalyThreshold(a float64) {
 // The anomalyRatio defines the decision threshold for the final anomaly score.
 // If a calculated score is smaller than this ratio, the instance is likely
 // to be classified as a normal data point.
-func NewForest(t int, subsamplingSize int, anomalyRatio float64) *Forest {
+func (f *Forest) NewForest(t int, subsamplingSize int, anomalyRatio float64) {
 	// Initialize Forest
 	heightLimit := math.Ceil(math.Log2(float64(subsamplingSize)))
-	trees := make([]Tree, t)
 
-	f := &Forest{
-		trees:           trees,
-		subsamplingSize: subsamplingSize,
-		treeCount:       t,
-		heightLimit:     int(heightLimit),
-		anomalyRatio:    anomalyRatio,
+	f.trees = make([]Tree, t)
+	// Link each tree back to the forest so it can access the localSchema.
+	for i := range t {
+		f.trees[i] = Tree{Forest: f}
 	}
-	return f
+
+	f.subsamplingSize = subsamplingSize
+	f.treeCount = t
+	f.heightLimit = int(heightLimit)
+	f.anomalyRatio = anomalyRatio
 }
 
 // Train creates the collection of trees in the forest.
@@ -58,7 +93,7 @@ func (f *Forest) Train(trainSet []Vector) {
 		for i := range f.subsamplingSize {
 			samples[i] = trainSet[indices[i]]
 		}
-		f.trees[i] = *NewTree(samples, f.heightLimit)
+		f.trees[i].Build(samples)
 	}
 }
 
@@ -71,8 +106,8 @@ func (f *Forest) AnomalyScore(x Vector) float64 {
 	plSum := 0.0
 	for _, tree := range f.trees {
 		// TODO: accelerate using goroutines
-		root := tree.Root
-		plSum += pathLength(x, root, 0)
+		root := tree.root
+		plSum += f.pathLength(x, root, 0)
 	}
 	avg := plSum / float64(len(f.trees))
 	exponent := -1 * avg / averagePathLength(f.subsamplingSize)
@@ -89,14 +124,15 @@ func (f *Forest) AnomalyScore(x Vector) float64 {
 //	x: an instance
 //	t: an iTree
 //	e: current path length
-func pathLength(x Vector, t *Node, e float64) float64 {
+func (f *Forest) pathLength(x Vector, t *Node, e float64) float64 {
 	// external node
 	if t.Left == nil && t.Right == nil {
 		return e + averagePathLength(t.Size)
 	}
 	// inNode
 	att := t.SplitAtt
-	attIdx := globalSchema[att]
+	// access localSchema from f
+	attIdx := f.NameToIdx[att]
 	xattv := x[attIdx]
 
 	switch att.Type {
@@ -104,26 +140,26 @@ func pathLength(x Vector, t *Node, e float64) float64 {
 		{
 			for _, v := range t.SplitValue {
 				if xattv == v {
-					return pathLength(x, t.Left, e+1)
+					return f.pathLength(x, t.Left, e+1)
 				} else {
-					return pathLength(x, t.Right, e+1)
+					return f.pathLength(x, t.Right, e+1)
 				}
 			}
 		}
 	case TypeNumerical:
 		{
 			if xattv < t.SplitValue[0] {
-				return pathLength(x, t.Left, e+1)
+				return f.pathLength(x, t.Left, e+1)
 			} else {
-				return pathLength(x, t.Right, e+1)
+				return f.pathLength(x, t.Right, e+1)
 			}
 		}
 	case TypeBool:
 		{
 			if xattv == 1 {
-				return pathLength(x, t.Left, e+1)
+				return f.pathLength(x, t.Left, e+1)
 			} else {
-				return pathLength(x, t.Right, e+1)
+				return f.pathLength(x, t.Right, e+1)
 			}
 		}
 	}

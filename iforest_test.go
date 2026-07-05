@@ -8,7 +8,7 @@ import (
 	"github.com/kznLeaf/ifcat-go"
 )
 
-var f *ifcat.Forest
+var f ifcat.Forest
 
 const (
 	nInliers        int     = 240
@@ -19,11 +19,13 @@ const (
 )
 
 func init() {
-	ifcat.AddField("X", ifcat.TypeNumerical)
-	ifcat.AddField("Y", ifcat.TypeNumerical)
-
 	rawData := generateNumericalData()
-	f = ifcat.NewForest(treeCount, subsamplingSize, anomalyRatio)
+	f = ifcat.Forest{}
+
+	f.AddField("X", ifcat.TypeNumerical)
+	f.AddField("Y", ifcat.TypeNumerical)
+
+	f.NewForest(treeCount, subsamplingSize, anomalyRatio)
 	f.Train(rawData)
 }
 

@@ -18,26 +18,3 @@ type AttributeMeta struct {
 
 // Schema defines the attributes for the data
 type Schema map[AttributeMeta]int
-
-// globalSchema maps each attribute metadata to its corresponding slice index.
-var globalSchema Schema = map[AttributeMeta]int{}
-
-// globalSchemaIdxToName provides an lookup to efficiently select
-// a random attribute during node splitting
-var globalSchemaIdxToName = map[int]AttributeMeta{}
-
-// AddField adds one field to globalSchema. This method is not thread safe.
-func AddField(name string, attrType AttributeType) {
-	meta := AttributeMeta{
-		Name: name,
-		Type: attrType,
-	}
-
-	if _, exists := globalSchema[meta]; exists {
-		return
-	}
-
-	nextIndex := len(globalSchema)
-	globalSchema[meta] = nextIndex
-	globalSchemaIdxToName[nextIndex] = meta
-}
