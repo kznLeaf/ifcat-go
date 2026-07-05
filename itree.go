@@ -13,13 +13,14 @@ type Tree struct {
 
 // Node is a structure for iNode
 type Node struct {
-	// nodes with no children are called external nodes or leaf nodes
 	Left  *Node
 	Right *Node
 	// SplitAtt and SplitValue is used in prediction stage.
+	// Only inNodes have these two fields.
 	SplitAtt   Attribute
 	SplitValue []float64
-	// Size is only used for external nodes
+	// Only exNodes have `Size` field.
+	// nodes with no children are called external nodes or leaf nodes.
 	Size int
 }
 
@@ -57,9 +58,9 @@ func randAtt() Attribute {
 }
 
 // filter filters the dataset X based on the conditional expression.
-// If the data meets the condition, it would be put into Xl, or else Xr.
+// If the data meets the condition, it would be put into Xl, else Xr.
 //
-// returns left tree, right tree and SplitValue
+// returns the sub-dataset for left tree, right tree and the SplitValue on current inNode.
 func filter(X []Vector, q *Attribute) ([]Vector, []Vector, []float64) {
 	attName := q.Name
 	attType := q.Type
@@ -90,7 +91,7 @@ func filter(X []Vector, q *Attribute) ([]Vector, []Vector, []float64) {
 			subset := randSubset(counts, size)
 			splitValue = subset
 
-			// if qv is in subset p, then put into Xl, else Xr
+			// if qv is in subset p, then put in Xl, else Xr
 			for _, data := range X {
 				qv := data[attName].Value
 				for _, v := range subset {

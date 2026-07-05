@@ -19,7 +19,7 @@ type Forest struct {
 // NewForest returns a set of iTrees
 //
 //	t: number of trees
-func NewForest(X []Vector, t int, subsamplingSize int) *Forest {
+func NewForest(t int, subsamplingSize int) *Forest {
 	// Initialize Forest
 	heightLimit := math.Ceil(math.Log2(float64(subsamplingSize)))
 	trees := make([]Tree, 0, t)
@@ -35,7 +35,8 @@ func NewForest(X []Vector, t int, subsamplingSize int) *Forest {
 }
 
 // Train creates the collection of trees in the forest.
-// The total number of trainSet must be SubsamplingSize * TreeCount
+// The total number of `trainSet` must be SubsamplingSize * TreeCount since
+// `trainSet` represents the subsampled dataset instead of the whole dataset.
 func (f *Forest) Train(trainSet []Vector) {
 	n := len(trainSet)
 	if n < f.SubsamplingSize*f.TreeCount {

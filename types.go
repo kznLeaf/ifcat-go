@@ -8,20 +8,13 @@ const (
 	TypeBool                             // 2: Bool
 )
 
-type Operator byte
-
-const (
-	Less    Operator = 0
-	Equal   Operator = 1
-	Greater Operator = 2
-)
-
 var AttNameType = map[string]AttributeType{
 	"rooted": TypeCategorical,
 }
 
-// Q is a list of attribute in X
+// Q is a list of attribute in X. It is only used in randAtt()
 // TODO: init Q
+// Q's Name and Type is useful. Value field is not used.
 var Q []Attribute
 
 type Attribute struct {
