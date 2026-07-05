@@ -19,19 +19,31 @@ type AttributeMeta struct {
 // Schema defines the attributes for the data
 type Schema map[AttributeMeta]int
 
-// GlobalSchema defines the field types and index positions for each data.
-var GlobalSchema Schema = map[AttributeMeta]int{
-	{Name: "X", Type: TypeNumerical}: 0,
-	{Name: "Y", Type: TypeNumerical}: 1,
-}
+// globalSchema defines the field types and index positions for each data.
+var globalSchema Schema = map[AttributeMeta]int{}
 
-// GlobalSchemaIdxToName is used in randomly selecting an attribute q from all attributes
-var GlobalSchemaIdxToName map[int]AttributeMeta
+// globalSchemaIdxToName is used in randomly selecting an attribute q from all attributes
+var globalSchemaIdxToName map[int]AttributeMeta
 
 // init initializes GlobalSchemaIdxToName
 func init() {
-	GlobalSchemaIdxToName = make(map[int]AttributeMeta)
-	for att, idx := range GlobalSchema {
-		GlobalSchemaIdxToName[idx] = att
+	globalSchemaIdxToName = make(map[int]AttributeMeta)
+	for att, idx := range globalSchema {
+		globalSchemaIdxToName[idx] = att
 	}
+}
+
+// AddField adds one field to globalSchema. This method is not thread safe.
+func AddField(name string, attrType AttributeType) {
+	meta := AttributeMeta{
+		Name: name,
+		Type: attrType,
+	}
+
+	if _, exists := globalSchema[meta]; !exists {
+		return
+	}
+
+	nextIndex := len(globalSchema)
+	globalSchema[meta] = nextIndex
 }

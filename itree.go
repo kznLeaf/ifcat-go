@@ -50,7 +50,7 @@ func buildTree(X []Vector, e int, l int) *Node {
 
 // randAtt randomly select an attribute q from Q
 func randAtt() AttributeMeta {
-	return GlobalSchemaIdxToName[rand.Intn(len(GlobalSchema))]
+	return globalSchemaIdxToName[rand.Intn(len(globalSchema))]
 }
 
 // filter filters the dataset X based on the conditional expression.
@@ -58,7 +58,7 @@ func randAtt() AttributeMeta {
 //
 // returns the sub-dataset for left tree, right tree and the SplitValue on current inNode.
 func filter(X []Vector, q AttributeMeta) ([]Vector, []Vector, []float64) {
-	attIdx := GlobalSchema[q]
+	attIdx := globalSchema[q]
 	attType := q.Type
 
 	Xl := make([]Vector, 0, len(X))

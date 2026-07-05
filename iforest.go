@@ -9,27 +9,41 @@ import (
 const Euler float64 = 0.5772156649
 
 type Forest struct {
-	Trees           []Tree
-	SubsamplingSize int
-	TreeCount       int
-	HeightLimit     int
-	AnomalyRatio    float64
+	trees           []Tree
+	subsamplingSize int
+	treeCount       int
+	heightLimit     int
+	anomalyRatio    float64
 }
 
-// NewForest initializes an empty forest.
+func (f *Forest) SetAnomalyThreshold(a float64) {
+	f.anomalyRatio = a
+}
+
+// NewForest initializes and returns an empty Forest ready for training.
 //
-//	t: number of trees
+// The t parameter specifies the total number of isolation trees to be created
+// within the forest.
+//
+// The subsamplingSize determines the number of samples drawn to train each base tree.
+// A value of 256 is recommended for most datasets:
+//
+//	subsamplingSize := 256
+//
+// The anomalyRatio defines the decision threshold for the final anomaly score.
+// If a calculated score is smaller than this ratio, the instance is likely
+// to be classified as a normal data point.
 func NewForest(t int, subsamplingSize int, anomalyRatio float64) *Forest {
 	// Initialize Forest
 	heightLimit := math.Ceil(math.Log2(float64(subsamplingSize)))
 	trees := make([]Tree, t)
 
 	f := &Forest{
-		Trees:           trees,
-		SubsamplingSize: subsamplingSize,
-		TreeCount:       t,
-		HeightLimit:     int(heightLimit),
-		AnomalyRatio:    anomalyRatio,
+		trees:           trees,
+		subsamplingSize: subsamplingSize,
+		treeCount:       t,
+		heightLimit:     int(heightLimit),
+		anomalyRatio:    anomalyRatio,
 	}
 	return f
 }
@@ -37,44 +51,31 @@ func NewForest(t int, subsamplingSize int, anomalyRatio float64) *Forest {
 // Train creates the collection of trees in the forest.
 func (f *Forest) Train(trainSet []Vector) {
 	n := len(trainSet)
-	// if n < f.SubsamplingSize*f.TreeCount {
-	// 	return
-	// }
 
-	for i := range f.TreeCount {
+	for i := range f.treeCount {
 		indices := rand.Perm(n)
-		samples := make([]Vector, f.SubsamplingSize)
-		for i := range f.SubsamplingSize {
+		samples := make([]Vector, f.subsamplingSize)
+		for i := range f.subsamplingSize {
 			samples[i] = trainSet[indices[i]]
 		}
-		f.Trees[i] = *NewTree(samples, f.HeightLimit)
+		f.trees[i] = *NewTree(samples, f.heightLimit)
 	}
-
-	// for i := 0; i < n; i += f.SubsamplingSize {
-	// 	end := min(i+f.SubsamplingSize, n)
-	// 	batchIndices := indices[i:end]
-	// 	batchData := make([]Vector, len(batchIndices))
-	// 	for j, idx := range batchIndices {
-	// 		batchData[j] = trainSet[idx]
-	// 	}
-	// 	newTree := NewTree(batchData, f.HeightLimit)
-	// 	f.Trees = append(f.Trees, *newTree)
-	// }
 }
 
 // AnomalyScore computes the average path length of x from the ensemble of trees,
-// then normalize it in (0, 1).
+// then normalize it to a range between 0 and 1.
+//
 //   - if instances have anomaly score close to 1, then they are anomalies.
-//   - if instance have anomaly score close to 0, then they are inliers.
+//   - if instances have anomaly score close to 0, then they are inliers.
 func (f *Forest) AnomalyScore(x Vector) float64 {
 	plSum := 0.0
-	for _, tree := range f.Trees {
+	for _, tree := range f.trees {
 		// TODO: accelerate using goroutines
 		root := tree.Root
 		plSum += pathLength(x, root, 0)
 	}
-	avg := plSum / float64(len(f.Trees))
-	exponent := -1 * avg / averagePathLength(f.SubsamplingSize)
+	avg := plSum / float64(len(f.trees))
+	exponent := -1 * avg / averagePathLength(f.subsamplingSize)
 	s := math.Pow(2, exponent)
 	// TODO: remove panic
 	if s < 0 || s > 1 {
@@ -95,7 +96,7 @@ func pathLength(x Vector, t *Node, e float64) float64 {
 	}
 	// inNode
 	att := t.SplitAtt
-	attIdx := GlobalSchema[att]
+	attIdx := globalSchema[att]
 	xattv := x[attIdx]
 
 	switch att.Type {
@@ -130,7 +131,7 @@ func pathLength(x Vector, t *Node, e float64) float64 {
 	panic("Unreachable!")
 }
 
-// averagePathLength is the same as c(n)
+// averagePathLength is the same as c(n) in algorithm description
 func averagePathLength(n int) float64 {
 	if n > 2 {
 		return 2*harmonic(n-1) - 2*float64(n-1)/float64(n)

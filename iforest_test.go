@@ -18,7 +18,10 @@ const (
 )
 
 func init() {
-	rawData := GenerateIsolationForestData()
+	ifcat.AddField("X", ifcat.TypeNumerical)
+	ifcat.AddField("Y", ifcat.TypeNumerical)
+
+	rawData := generateNumericalData()
 	f = ifcat.NewForest(treeCount, subsamplingSize, anomalyRatio)
 	f.Train(rawData)
 }
@@ -53,7 +56,7 @@ func TestForest_AnomalyScore(t *testing.T) {
 	}
 }
 
-func GenerateIsolationForestData() []ifcat.Vector {
+func generateNumericalData() []ifcat.Vector {
 	totalSamples := nInliers + nOutliers
 
 	r := rand.New(rand.NewPCG(0, 0))
