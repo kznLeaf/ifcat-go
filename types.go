@@ -8,21 +8,32 @@ const (
 	TypeBool                             // 2: Bool
 )
 
-var AttNameType = map[string]AttributeType{
-	"rooted": TypeCategorical,
-}
+// Vector represents one sample
+type Vector []float64
 
-// Q is a list of attribute in X. It is only used in randAtt()
-// TODO: init Q
-// Q's Name and Type is useful. Value field is not used.
-var Q []Attribute
-
-type Attribute struct {
+type AttributeMeta struct {
 	Name string
 	Type AttributeType
-	// Value can represent both categorical and numerical values.
-	Value float64
 }
 
-// Vector each input data is consisted of several features.
-type Vector map[string]Attribute
+// Schema defines the attributes for the data
+type Schema map[AttributeMeta]int
+
+// GlobalSchema defines the field types and index positions for each data.
+var GlobalSchema Schema = map[AttributeMeta]int{
+	{Name: "rooted", Type: TypeBool}: 1,
+}
+var GlobalSchemaIdxToName map[int]AttributeMeta
+
+// init initialize
+func init() {
+	GlobalSchemaIdxToName = make(map[int]AttributeMeta)
+	for att, idx := range GlobalSchema {
+		GlobalSchemaIdxToName[idx] = att
+	}
+}
+
+type Dataset struct {
+	Schema  Schema
+	Vectors []Vector
+}

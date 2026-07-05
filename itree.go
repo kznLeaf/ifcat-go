@@ -17,7 +17,7 @@ type Node struct {
 	Right *Node
 	// SplitAtt and SplitValue is used in prediction stage.
 	// Only inNodes have these two fields.
-	SplitAtt   Attribute
+	SplitAtt   AttributeMeta
 	SplitValue []float64
 	// Only exNodes have `Size` field.
 	// nodes with no children are called external nodes or leaf nodes.
@@ -42,7 +42,7 @@ func buildTree(X []Vector, e int, l int) *Node {
 		return exNode
 	}
 	q := randAtt()
-	Xl, Xr, splitValue := filter(X, &q)
+	Xl, Xr, splitValue := filter(X, q)
 	inNode := &Node{
 		Left:       buildTree(Xl, e+1, l),
 		Right:      buildTree(Xr, e+1, l),
@@ -53,16 +53,16 @@ func buildTree(X []Vector, e int, l int) *Node {
 }
 
 // randAtt randomly select an attribute q from Q
-func randAtt() Attribute {
-	return Q[rand.Intn(len(Q))]
+func randAtt() AttributeMeta {
+	return GlobalSchemaIdxToName[rand.Intn(len(GlobalSchema))]
 }
 
 // filter filters the dataset X based on the conditional expression.
 // If the data meets the condition, it would be put into Xl, else Xr.
 //
 // returns the sub-dataset for left tree, right tree and the SplitValue on current inNode.
-func filter(X []Vector, q *Attribute) ([]Vector, []Vector, []float64) {
-	attName := q.Name
+func filter(X []Vector, q AttributeMeta) ([]Vector, []Vector, []float64) {
+	attIdx := GlobalSchema[q]
 	attType := q.Type
 
 	Xl := make([]Vector, 0, len(X))
@@ -75,7 +75,7 @@ func filter(X []Vector, q *Attribute) ([]Vector, []Vector, []float64) {
 		{
 			counts := make(map[float64]struct{})
 			for _, v := range X {
-				val := v[attName].Value
+				val := v[attIdx]
 				if _, ok := counts[val]; !ok {
 					counts[val] = struct{}{}
 				}
@@ -93,7 +93,7 @@ func filter(X []Vector, q *Attribute) ([]Vector, []Vector, []float64) {
 
 			// if qv is in subset p, then put in Xl, else Xr
 			for _, data := range X {
-				qv := data[attName].Value
+				qv := data[attIdx]
 				for _, v := range subset {
 					if qv == v {
 						Xl = append(Xl, data)
@@ -105,11 +105,11 @@ func filter(X []Vector, q *Attribute) ([]Vector, []Vector, []float64) {
 		}
 	case TypeNumerical:
 		{
-			min := X[0][attName].Value
-			max := X[0][attName].Value
+			min := X[0][attIdx]
+			max := X[0][attIdx]
 			// determine max and min by iterating X
 			for _, v := range X {
-				val := v[attName].Value
+				val := v[attIdx]
 				if val < min {
 					min = val
 				}
@@ -122,7 +122,7 @@ func filter(X []Vector, q *Attribute) ([]Vector, []Vector, []float64) {
 			splitValue = append(splitValue, p)
 
 			for _, data := range X {
-				qv := data[attName].Value
+				qv := data[attIdx]
 				if qv < p {
 					Xl = append(Xl, data)
 				} else {
@@ -132,7 +132,7 @@ func filter(X []Vector, q *Attribute) ([]Vector, []Vector, []float64) {
 		}
 	case TypeBool:
 		for _, data := range X {
-			qv := data[attName].Value
+			qv := data[attIdx]
 			if qv == 1 {
 				Xl = append(Xl, data)
 			} else {

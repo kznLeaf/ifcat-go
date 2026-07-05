@@ -64,6 +64,7 @@ func (f *Forest) Train(trainSet []Vector) {
 func (f *Forest) AnomalyScore(x Vector) float64 {
 	plSum := 0.0
 	for _, tree := range f.Trees {
+		// TODO: accelerate using goroutines
 		root := tree.Root
 		plSum += pathLength(x, root, 0)
 	}
@@ -89,7 +90,8 @@ func pathLength(x Vector, t *Node, e float64) float64 {
 	}
 	// inNode
 	att := t.SplitAtt
-	xattv := x[att.Name].Value
+	attIdx := GlobalSchema[att]
+	xattv := x[attIdx]
 
 	switch att.Type {
 	case TypeCategorical:
