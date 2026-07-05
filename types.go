@@ -24,17 +24,14 @@ var GlobalSchema Schema = map[AttributeMeta]int{
 	{Name: "X", Type: TypeNumerical}: 0,
 	{Name: "Y", Type: TypeNumerical}: 1,
 }
+
+// GlobalSchemaIdxToName is used in randomly selecting an attribute q from all attributes
 var GlobalSchemaIdxToName map[int]AttributeMeta
 
-// init initialize
+// init initializes GlobalSchemaIdxToName
 func init() {
 	GlobalSchemaIdxToName = make(map[int]AttributeMeta)
 	for att, idx := range GlobalSchema {
 		GlobalSchemaIdxToName[idx] = att
 	}
 }
-
-// type Dataset struct {
-// 	Schema  Schema
-// 	Vectors []Vector
-// }

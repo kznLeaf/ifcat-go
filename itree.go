@@ -2,10 +2,6 @@ package ifcat
 
 import "math/rand"
 
-// MaxDepth limits the depth of trees, is computed during initialization based
-// on the subsampling size
-var MaxDepth int
-
 // Tree is base structure for the iTree
 type Tree struct {
 	Root *Node
@@ -31,7 +27,7 @@ func NewTree(X []Vector, heightLimit int) *Tree {
 	}
 }
 
-// buildTree builds a itree. Return the root node.
+// buildTree builds an itree. Returns the root node.
 //
 //	X: input dataset
 //	e: current tree height

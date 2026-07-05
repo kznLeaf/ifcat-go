@@ -2,6 +2,7 @@ package ifcat_test
 
 import (
 	"ifcat-go"
+	"math"
 	"math/rand/v2"
 	"testing"
 )
@@ -9,17 +10,17 @@ import (
 var f *ifcat.Forest
 
 const (
-	nInliers        int = 240
-	nOutliers       int = 40
-	treeCount       int = 100
-	subsamplingSize int = 100
+	nInliers        int     = 240
+	nOutliers       int     = 40
+	treeCount       int     = 100
+	subsamplingSize int     = 100
+	anomalyRatio    float64 = 0.5
 )
 
 func init() {
 	rawData := GenerateIsolationForestData()
-	f = ifcat.NewForest(100, 100)
+	f = ifcat.NewForest(treeCount, subsamplingSize, anomalyRatio)
 	f.Train(rawData)
-
 }
 
 func TestForest_AnomalyScore(t *testing.T) {
@@ -33,17 +34,19 @@ func TestForest_AnomalyScore(t *testing.T) {
 		want float64
 	}{
 		{
-			name:            "Two numberical varibles",
+			name:            "Two numerical varibles",
 			t:               treeCount,
 			subsamplingSize: subsamplingSize,
 			x:               ifcat.Vector{-2.0, -2.0},
-			want:            0.3436,
+			want:            0.3436, // 0.3436 is the result computed by sklearn
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := f.AnomalyScore(tt.x)
-			if got != tt.want {
+			// For two-dimensional numerical data,
+			// the error between our algorithm and sklearn is less than 0.01.
+			if math.Abs(got-tt.want) > 0.01 {
 				t.Errorf("AnomalyScore() = %v, want %v", got, tt.want)
 			}
 		})

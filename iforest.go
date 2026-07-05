@@ -19,7 +19,7 @@ type Forest struct {
 // NewForest initializes an empty forest.
 //
 //	t: number of trees
-func NewForest(t int, subsamplingSize int) *Forest {
+func NewForest(t int, subsamplingSize int, anomalyRatio float64) *Forest {
 	// Initialize Forest
 	heightLimit := math.Ceil(math.Log2(float64(subsamplingSize)))
 	trees := make([]Tree, t)
@@ -29,7 +29,7 @@ func NewForest(t int, subsamplingSize int) *Forest {
 		SubsamplingSize: subsamplingSize,
 		TreeCount:       t,
 		HeightLimit:     int(heightLimit),
-		AnomalyRatio:    0.5,
+		AnomalyRatio:    anomalyRatio,
 	}
 	return f
 }
