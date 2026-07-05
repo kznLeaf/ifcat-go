@@ -1,10 +1,11 @@
 package ifcat_test
 
 import (
-	"ifcat-go"
 	"math"
 	"math/rand/v2"
 	"testing"
+
+	"github.com/kznLeaf/ifcat-go"
 )
 
 var f *ifcat.Forest
