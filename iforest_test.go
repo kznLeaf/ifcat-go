@@ -8,58 +8,44 @@ import (
 	"github.com/kznLeaf/ifcat-go"
 )
 
-var f ifcat.Forest
+func TestForest_AnomalyScore_TwoNumericalVariables(t *testing.T) {
+	forest := newTwoNumericalVariablesForest(t)
 
-const (
-	nInliers        int     = 240
-	nOutliers       int     = 40
-	treeCount       int     = 100
-	subsamplingSize int     = 100
-	anomalyRatio    float64 = 0.5
-)
+	x := ifcat.Vector{-2.0, -2.0}
+	want := 0.3436
 
-func init() {
-	rawData := generateNumericalData()
-	f = ifcat.Forest{}
+	got := forest.AnomalyScore(x)
 
-	f.AddField("X", ifcat.TypeNumerical)
-	f.AddField("Y", ifcat.TypeNumerical)
-
-	f.NewForest(treeCount, subsamplingSize, anomalyRatio)
-	f.Train(rawData)
-}
-
-func TestForest_AnomalyScore(t *testing.T) {
-	tests := []struct {
-		name string // description of this test case
-		// Named input parameters for receiver constructor.
-		t               int
-		subsamplingSize int
-		// Named input parameters for target function.
-		x    ifcat.Vector
-		want float64
-	}{
-		{
-			name:            "Two numerical varibles",
-			t:               treeCount,
-			subsamplingSize: subsamplingSize,
-			x:               ifcat.Vector{-2.0, -2.0},
-			want:            0.3436, // 0.3436 is the result computed by sklearn
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := f.AnomalyScore(tt.x)
-			// For two-dimensional numerical data,
-			// the error between our algorithm and sklearn is less than 0.01.
-			if math.Abs(got-tt.want) > 0.01 {
-				t.Errorf("AnomalyScore() = %v, want %v", got, tt.want)
-			}
-		})
+	if math.Abs(got-want) > 0.01 {
+		t.Errorf("AnomalyScore() = %v, want %v", got, want)
 	}
 }
 
-func generateNumericalData() []ifcat.Vector {
+func newTwoNumericalVariablesForest(t *testing.T) ifcat.Forest {
+	t.Helper()
+
+	const (
+		nInliers        int     = 240
+		nOutliers       int     = 40
+		treeCount       int     = 100
+		subsamplingSize int     = 100
+		anomalyRatio    float64 = 0.5
+	)
+
+	data := generateNumericalData(nInliers, nOutliers)
+
+	forest := ifcat.Forest{}
+
+	forest.AddField("X", ifcat.TypeNumerical)
+	forest.AddField("Y", ifcat.TypeNumerical)
+
+	forest.NewForest(treeCount, subsamplingSize, anomalyRatio)
+	forest.Train(data)
+
+	return forest
+}
+
+func generateNumericalData(nInliers int, nOutliers int) []ifcat.Vector {
 	totalSamples := nInliers + nOutliers
 
 	r := rand.New(rand.NewPCG(0, 0))
