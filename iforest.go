@@ -119,6 +119,11 @@ func (f *Forest) AnomalyScore(x Vector) float64 {
 	return s
 }
 
+// Predict predicts if instance x is an anomaly point.
+func (f *Forest) Predict(x Vector) bool {
+	return f.AnomalyScore(x) < f.anomalyRatio
+}
+
 // pathLength computes the path length on one tree
 //
 //	x: an instance
