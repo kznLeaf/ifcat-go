@@ -2,6 +2,7 @@ package ifcat_test
 
 import (
 	"bufio"
+	"fmt"
 	"math"
 	"math/rand/v2"
 	"os"
@@ -90,41 +91,55 @@ func generateNumericalData(nInliers int, nOutliers int) []ifcat.Vector {
 
 func TestForest_AnomalyScore_CategoricalVariables(t *testing.T) {
 	path := "./testdata/car_evaluation/car.data"
-	// Train forest based on car_evaluation dataset
-	// The dataset returned here is used for both training and later testing
-	f, dataset, anomalyResults := newCategoricalVariablesForest(t, path)
+	// Train forest based on car_evaluation normalDataset
+	// The normalDataset returned here is used for both training and later testing
+	f, normalDataset, anomalyDataset := newCategoricalVariablesForest(t, path)
 
-	// Prediction stage: iterate on whole dataset, compute TP, FP and FN
-	var TP, FP, FN int
+	anomalyScores := make([]float64, len(anomalyDataset))
+	normalScores := make([]float64, len(normalDataset))
 
-	for i := range dataset {
-		score := f.AnomalyScore(dataset[i])
-		t.Logf("score: %v\n", score)
-		predictIsVgood := f.Predict(dataset[i])
-		actualIsVgood := anomalyResults[i]
-		if predictIsVgood && actualIsVgood {
-			TP += 1
-		}
-		if predictIsVgood && !actualIsVgood {
-			FP += 1
-		}
-		if !predictIsVgood && actualIsVgood {
-			FN += 1
-		}
+	for i, data := range anomalyDataset {
+		anomalyScores[i] = f.AnomalyScore(data)
 	}
 
-	t.Logf("TP: %v, FP: %v, FN: %v\n", TP, FP, FN)
+	for i, data := range normalDataset {
+		normalScores[i] = f.AnomalyScore(data)
+	}
 
-	precision := float64(TP) / (float64(TP) + float64(FP))
-	recall := float64(TP) / (float64(TP) + float64((FN)))
-	f1Score := 2 * precision * recall / (precision + recall)
+	// save scores in a csv file
+	writeCSV(normalScores, anomalyScores)
 
-	t.Logf("Precision: %v\n", precision)
-	t.Logf("Recall: %v\n", recall)
-	t.Logf("F1 Score: %v\n", f1Score)
+	// Prediction stage: iterate on whole dataset, compute TP, FP and FN
+	// var TP, FP, FN int
+	//
+	// for i := range normalDataset {
+	// 	score := f.AnomalyScore(normalDataset[i])
+	// 	t.Logf("score: %v\n", score)
+	// 	predictIsVgood := f.Predict(normalDataset[i])
+	// 	actualIsVgood := anomalyDataset[i]
+	// 	if predictIsVgood && actualIsVgood {
+	// 		TP += 1
+	// 	}
+	// 	if predictIsVgood && !actualIsVgood {
+	// 		FP += 1
+	// 	}
+	// 	if !predictIsVgood && actualIsVgood {
+	// 		FN += 1
+	// 	}
+	// }
+	//
+	// t.Logf("TP: %v, FP: %v, FN: %v\n", TP, FP, FN)
+	//
+	// precision := float64(TP) / (float64(TP) + float64(FP))
+	// recall := float64(TP) / (float64(TP) + float64((FN)))
+	// f1Score := 2 * precision * recall / (precision + recall)
+	//
+	// t.Logf("Precision: %v\n", precision)
+	// t.Logf("Recall: %v\n", recall)
+	// t.Logf("F1 Score: %v\n", f1Score)
 }
 
-func newCategoricalVariablesForest(t *testing.T, path string) (ifcat.Forest, []ifcat.Vector, []bool) {
+func newCategoricalVariablesForest(t *testing.T, path string) (ifcat.Forest, []ifcat.Vector, []ifcat.Vector) {
 	t.Helper()
 
 	const (
@@ -133,7 +148,7 @@ func newCategoricalVariablesForest(t *testing.T, path string) (ifcat.Forest, []i
 		anomalyThreshold float64 = 0.5
 	)
 
-	dataset, anomalyResults := parseCarEvaluationData(path)
+	normalDataset, anomalyDataset := parseCarEvaluationData(path)
 	// for i := range 20 {
 	// 	t.Log(dataset[i])
 	// }
@@ -147,14 +162,14 @@ func newCategoricalVariablesForest(t *testing.T, path string) (ifcat.Forest, []i
 	f.AddField("safety", ifcat.TypeCategorical)
 
 	f.NewForest(treeCount, subsamplingSize, anomalyThreshold)
-	f.Train(dataset)
+	f.Train(normalDataset)
 
-	return f, dataset, anomalyResults
+	return f, normalDataset, anomalyDataset
 }
 
-func parseCarEvaluationData(path string) ([]ifcat.Vector, []bool) {
-	results := make([]ifcat.Vector, 0, 2000)
-	anomalyResults := make([]bool, 0, 2000)
+func parseCarEvaluationData(path string) ([]ifcat.Vector, []ifcat.Vector) {
+	normalDataset := make([]ifcat.Vector, 0, 2000)
+	anomalyDataset := make([]ifcat.Vector, 0, 100)
 
 	buyingOrMaint := map[string]float64{
 		"low":   0,
@@ -199,13 +214,17 @@ func parseCarEvaluationData(path string) ([]ifcat.Vector, []bool) {
 				instance[i] = mustLookup(safety, att)
 			}
 		}
-		results = append(results, instance)
-		anomalyResults = append(anomalyResults, class == "vgood")
+
+		if class == "unacc" {
+			normalDataset = append(normalDataset, instance)
+		} else {
+			anomalyDataset = append(anomalyDataset, instance)
+		}
 	})
 	if err != nil {
 		panic(err)
 	}
-	return results, anomalyResults
+	return normalDataset, anomalyDataset
 }
 
 func forEachLine(path string, callback func(line string)) error {
@@ -229,4 +248,23 @@ func mustLookup(m map[string]float64, key string) float64 {
 		panic("unknown category: " + key)
 	}
 	return v
+}
+
+// writeCSV save scores in a csv file so we can analyze it later using a python script
+func writeCSV(nomalScores []float64, anomalyScores []float64) {
+	file, err := os.Create("scores.csv")
+	if err != nil {
+		panic("can not create csv file")
+	}
+	defer file.Close()
+
+	fmt.Fprintln(file, "score,label")
+
+	for _, score := range anomalyScores {
+		fmt.Fprintf(file, "%f,1\n", score)
+	}
+
+	for _, score := range nomalScores {
+		fmt.Fprintf(file, "%f,0\n", score)
+	}
 }
