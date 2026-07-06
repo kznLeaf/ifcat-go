@@ -40,7 +40,7 @@ func buildNode(X []Vector, e int, l int, ls localSchema) *Node {
 
 	q := randAtt(ls.IdxToName)
 	Xl, Xr, splitValue := filter(X, q, ls)
-	if len(Xl) == 0 && len(Xr) == 0 {
+	if len(Xl) == 0 || len(Xr) == 0 {
 		return &Node{Size: len(X)}
 	}
 
@@ -133,12 +133,30 @@ func filter(X []Vector, q AttributeMeta, ls localSchema) ([]Vector, []Vector, []
 			}
 		}
 	case TypeBool:
-		for _, data := range X {
-			qv := data[attIdx]
-			if qv == 1 {
-				Xl = append(Xl, data)
-			} else {
-				Xr = append(Xr, data)
+		{
+			hasZero := false
+			hasOne := false
+			for _, data := range X {
+				if data[attIdx] == 1 {
+					hasOne = true
+				} else {
+					hasZero = true
+				}
+				if hasZero && hasOne {
+					break
+				}
+			}
+			if !hasZero || !hasOne {
+				return []Vector{}, []Vector{}, []float64{}
+			}
+
+			for _, data := range X {
+				qv := data[attIdx]
+				if qv == 1 {
+					Xl = append(Xl, data)
+				} else {
+					Xr = append(Xr, data)
+				}
 			}
 		}
 	}
