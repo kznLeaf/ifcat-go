@@ -1,6 +1,9 @@
 package ifcat
 
-import "math/rand"
+import (
+	"math/rand"
+	"slices"
+)
 
 // Tree is base structure for the iTree
 type Tree struct {
@@ -32,11 +35,15 @@ func (t *Tree) Build(X []Vector) {
 //	l: height limit
 func buildNode(X []Vector, e int, l int, ls localSchema) *Node {
 	if e >= l || len(X) <= 1 {
-		exNode := &Node{Size: len(X)}
-		return exNode
+		return &Node{Size: len(X)}
 	}
+
 	q := randAtt(ls.IdxToName)
 	Xl, Xr, splitValue := filter(X, q, ls)
+	if len(Xl) == 0 && len(Xr) == 0 {
+		return &Node{Size: len(X)}
+	}
+
 	inNode := &Node{
 		Left:       buildNode(Xl, e+1, l, ls),
 		Right:      buildNode(Xr, e+1, l, ls),
@@ -56,7 +63,10 @@ func randAtt(m map[int]AttributeMeta) AttributeMeta {
 //
 // returns the sub-dataset for left tree, right tree and the SplitValue on current inNode.
 func filter(X []Vector, q AttributeMeta, ls localSchema) ([]Vector, []Vector, []float64) {
-	attIdx := ls.NameToIdx[q]
+	attIdx, ok := ls.NameToIdx[q]
+	if !ok {
+		panic("unknown split attribute")
+	}
 	attType := q.Type
 
 	Xl := make([]Vector, 0, len(X))
@@ -75,10 +85,10 @@ func filter(X []Vector, q AttributeMeta, ls localSchema) ([]Vector, []Vector, []
 				}
 			}
 			var size int
-			// the size of subset is in [1, n - 1]
-			if len(counts) == 0 {
-				size = 1
+			if len(counts) < 2 {
+				return []Vector{}, []Vector{}, []float64{}
 			} else {
+				// size falls in [1, n - 1], n >= 2
 				size = rand.Intn(len(counts)-1) + 1
 			}
 
@@ -88,12 +98,10 @@ func filter(X []Vector, q AttributeMeta, ls localSchema) ([]Vector, []Vector, []
 			// if qv is in subset p, then put in Xl, else Xr
 			for _, data := range X {
 				qv := data[attIdx]
-				for _, v := range subset {
-					if qv == v {
-						Xl = append(Xl, data)
-					} else {
-						Xr = append(Xr, data)
-					}
+				if slices.Contains(subset, qv) {
+					Xl = append(Xl, data)
+				} else {
+					Xr = append(Xr, data)
 				}
 			}
 		}
@@ -145,7 +153,7 @@ func randSubset(fullSet map[float64]struct{}, size int) []float64 {
 		keys = append(keys, k)
 	}
 	for i := range size {
-		j := rand.Intn(len(keys)-i) + 1
+		j := rand.Intn(len(keys)-i) + i
 		keys[i], keys[j] = keys[j], keys[i]
 	}
 	return keys[:size]

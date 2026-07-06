@@ -1,12 +1,18 @@
 package ifcat_test
 
 import (
+	"bufio"
 	"math"
 	"math/rand/v2"
+	"os"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/kznLeaf/ifcat-go"
 )
+
+// -------------------------------------------------------------------
 
 func TestForest_AnomalyScore_TwoNumericalVariables(t *testing.T) {
 	forest := newTwoNumericalVariablesForest(t)
@@ -25,11 +31,11 @@ func newTwoNumericalVariablesForest(t *testing.T) ifcat.Forest {
 	t.Helper()
 
 	const (
-		nInliers        int     = 240
-		nOutliers       int     = 40
-		treeCount       int     = 100
-		subsamplingSize int     = 100
-		anomalyRatio    float64 = 0.5
+		nInliers         int     = 240
+		nOutliers        int     = 40
+		treeCount        int     = 100
+		subsamplingSize  int     = 100
+		anomalyThreshold float64 = 0.5
 	)
 
 	data := generateNumericalData(nInliers, nOutliers)
@@ -39,7 +45,7 @@ func newTwoNumericalVariablesForest(t *testing.T) ifcat.Forest {
 	forest.AddField("X", ifcat.TypeNumerical)
 	forest.AddField("Y", ifcat.TypeNumerical)
 
-	forest.NewForest(treeCount, subsamplingSize, anomalyRatio)
+	forest.NewForest(treeCount, subsamplingSize, anomalyThreshold)
 	forest.Train(data)
 
 	return forest
@@ -78,4 +84,149 @@ func generateNumericalData(nInliers int, nOutliers int) []ifcat.Vector {
 	}
 
 	return vectors
+}
+
+// -------------------------------------------------------------------
+
+func TestForest_AnomalyScore_CategoricalVariables(t *testing.T) {
+	path := "./testdata/car_evaluation/car.data"
+	// Train forest based on car_evaluation dataset
+	// The dataset returned here is used for both training and later testing
+	f, dataset, anomalyResults := newCategoricalVariablesForest(t, path)
+
+	// Prediction stage: iterate on whole dataset, compute TP, FP and FN
+	var TP, FP, FN int
+
+	for i := range dataset {
+		score := f.AnomalyScore(dataset[i])
+		t.Logf("score: %v\n", score)
+		predictIsVgood := f.Predict(dataset[i])
+		actualIsVgood := anomalyResults[i]
+		if predictIsVgood && actualIsVgood {
+			TP += 1
+		}
+		if predictIsVgood && !actualIsVgood {
+			FP += 1
+		}
+		if !predictIsVgood && actualIsVgood {
+			FN += 1
+		}
+	}
+
+	t.Logf("TP: %v, FP: %v, FN: %v\n", TP, FP, FN)
+
+	precision := float64(TP) / (float64(TP) + float64(FP))
+	recall := float64(TP) / (float64(TP) + float64((FN)))
+	f1Score := 2 * precision * recall / (precision + recall)
+
+	t.Logf("Precision: %v\n", precision)
+	t.Logf("Recall: %v\n", recall)
+	t.Logf("F1 Score: %v\n", f1Score)
+}
+
+func newCategoricalVariablesForest(t *testing.T, path string) (ifcat.Forest, []ifcat.Vector, []bool) {
+	t.Helper()
+
+	const (
+		treeCount        int     = 100
+		subsamplingSize  int     = 256
+		anomalyThreshold float64 = 0.5
+	)
+
+	dataset, anomalyResults := parseCarEvaluationData(path)
+	// for i := range 20 {
+	// 	t.Log(dataset[i])
+	// }
+
+	f := ifcat.Forest{}
+	f.AddField("buying", ifcat.TypeCategorical)
+	f.AddField("maint", ifcat.TypeCategorical)
+	f.AddField("doors", ifcat.TypeCategorical)
+	f.AddField("persons", ifcat.TypeCategorical)
+	f.AddField("lug_boot", ifcat.TypeCategorical)
+	f.AddField("safety", ifcat.TypeCategorical)
+
+	f.NewForest(treeCount, subsamplingSize, anomalyThreshold)
+	f.Train(dataset)
+
+	return f, dataset, anomalyResults
+}
+
+func parseCarEvaluationData(path string) ([]ifcat.Vector, []bool) {
+	results := make([]ifcat.Vector, 0, 2000)
+	anomalyResults := make([]bool, 0, 2000)
+
+	buyingOrMaint := map[string]float64{
+		"low":   0,
+		"med":   1,
+		"high":  2,
+		"vhigh": 3,
+	}
+	lugBoot := map[string]float64{
+		"small": 0,
+		"med":   1,
+		"big":   2,
+	}
+	safety := map[string]float64{
+		"low":  0,
+		"med":  1,
+		"high": 2,
+	}
+	// read and parse data into []Vector
+	err := forEachLine(path, func(line string) {
+		atts := strings.Split(line, ",")
+		class := atts[6]
+		if class == "acc" || class == "good" {
+			return
+		}
+		instance := make(ifcat.Vector, 6)
+		for i := range 6 {
+			att := strings.TrimSpace(atts[i])
+
+			switch i {
+			case 0, 1:
+				instance[i] = mustLookup(buyingOrMaint, att)
+			case 2, 3:
+				// `more` and `5more` is marked as number `0` here
+				if num, err := strconv.Atoi(att); err == nil {
+					instance[i] = float64(num)
+				} else {
+					instance[i] = 0
+				}
+			case 4:
+				instance[i] = mustLookup(lugBoot, att)
+			case 5:
+				instance[i] = mustLookup(safety, att)
+			}
+		}
+		results = append(results, instance)
+		anomalyResults = append(anomalyResults, class == "vgood")
+	})
+	if err != nil {
+		panic(err)
+	}
+	return results, anomalyResults
+}
+
+func forEachLine(path string, callback func(line string)) error {
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		callback(scanner.Text())
+	}
+
+	return scanner.Err()
+}
+
+func mustLookup(m map[string]float64, key string) float64 {
+	v, ok := m[key]
+	if !ok {
+		panic("unknown category: " + key)
+	}
+	return v
 }

@@ -2,7 +2,8 @@ package ifcat
 
 import (
 	"math"
-	"math/rand/v2"
+	"math/rand"
+	"slices"
 )
 
 // Euler is an Euler's constant as described in algorithm specification
@@ -15,7 +16,8 @@ type Forest struct {
 	subsamplingSize int
 	treeCount       int
 	heightLimit     int
-	anomalyRatio    float64
+	scoreThreshold  float64
+	// TODO: add a field `trained bool`
 }
 
 type localSchema struct {
@@ -27,7 +29,7 @@ type localSchema struct {
 }
 
 func (f *Forest) SetAnomalyThreshold(a float64) {
-	f.anomalyRatio = a
+	f.scoreThreshold = a
 }
 
 // AddField adds one field to globalSchema. This method is not thread safe.
@@ -64,10 +66,10 @@ func (f *Forest) AddField(name string, attrType AttributeType) {
 //
 //	subsamplingSize := 256
 //
-// The anomalyRatio defines the decision threshold for the final anomaly score.
-// If a calculated score is smaller than this ratio, the instance is likely
+// The threshold defines the decision threshold for the final anomaly score.
+// If a calculated score is smaller than this value, the instance is likely
 // to be classified as a normal data point.
-func (f *Forest) NewForest(t int, subsamplingSize int, anomalyRatio float64) {
+func (f *Forest) NewForest(t int, subsamplingSize int, threshold float64) {
 	// Initialize Forest
 	heightLimit := math.Ceil(math.Log2(float64(subsamplingSize)))
 
@@ -80,7 +82,7 @@ func (f *Forest) NewForest(t int, subsamplingSize int, anomalyRatio float64) {
 	f.subsamplingSize = subsamplingSize
 	f.treeCount = t
 	f.heightLimit = int(heightLimit)
-	f.anomalyRatio = anomalyRatio
+	f.scoreThreshold = threshold
 }
 
 // Train creates the collection of trees in the forest.
@@ -100,8 +102,8 @@ func (f *Forest) Train(trainSet []Vector) {
 // AnomalyScore computes the average path length of x from the ensemble of trees,
 // then normalize it to a range between 0 and 1.
 //
-//   - if instances have anomaly score close to 1, then they are anomalies.
-//   - if instances have anomaly score close to 0, then they are inliers.
+// If instances have anomaly score close to 1, then they are anomalies.
+// If instances have anomaly score close to zero, then they are inliers.
 func (f *Forest) AnomalyScore(x Vector) float64 {
 	plSum := 0.0
 	for _, tree := range f.trees {
@@ -121,7 +123,7 @@ func (f *Forest) AnomalyScore(x Vector) float64 {
 
 // Predict predicts if instance x is an anomaly point.
 func (f *Forest) Predict(x Vector) bool {
-	return f.AnomalyScore(x) < f.anomalyRatio
+	return f.AnomalyScore(x) > f.scoreThreshold
 }
 
 // pathLength computes the path length on one tree
@@ -134,21 +136,25 @@ func (f *Forest) pathLength(x Vector, t *Node, e float64) float64 {
 	if t.Left == nil && t.Right == nil {
 		return e + averagePathLength(t.Size)
 	}
+	if t.Left == nil || t.Right == nil {
+		panic("invalid tree: internal node has only one child")
+	}
 	// inNode
 	att := t.SplitAtt
 	// access localSchema from f
-	attIdx := f.NameToIdx[att]
+	attIdx, ok := f.NameToIdx[att]
+	if !ok {
+		panic("unknown split attribute")
+	}
 	xattv := x[attIdx]
 
 	switch att.Type {
 	case TypeCategorical:
 		{
-			for _, v := range t.SplitValue {
-				if xattv == v {
-					return f.pathLength(x, t.Left, e+1)
-				} else {
-					return f.pathLength(x, t.Right, e+1)
-				}
+			if slices.Contains(t.SplitValue, xattv) {
+				return f.pathLength(x, t.Left, e+1)
+			} else {
+				return f.pathLength(x, t.Right, e+1)
 			}
 		}
 	case TypeNumerical:
@@ -167,9 +173,9 @@ func (f *Forest) pathLength(x Vector, t *Node, e float64) float64 {
 				return f.pathLength(x, t.Right, e+1)
 			}
 		}
+	default:
+		panic("unknown attribute type")
 	}
-	// TODO: remove panic
-	panic("Unreachable!")
 }
 
 // averagePathLength is the same as c(n) in algorithm description
