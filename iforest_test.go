@@ -167,6 +167,7 @@ func newCategoricalVariablesForest(t *testing.T, path string) (ifcat.Forest, []i
 	return f, normalDataset, anomalyDataset
 }
 
+// parseCarEvaluationData returns normalDataset and anomalyDataset
 func parseCarEvaluationData(path string) ([]ifcat.Vector, []ifcat.Vector) {
 	normalDataset := make([]ifcat.Vector, 0, 2000)
 	anomalyDataset := make([]ifcat.Vector, 0, 100)
@@ -227,6 +228,98 @@ func parseCarEvaluationData(path string) ([]ifcat.Vector, []ifcat.Vector) {
 	return normalDataset, anomalyDataset
 }
 
+// -------------------------------------------------------------------
+
+func TestForest_AnomalyScore_BoolAndCategoricalVariables(t *testing.T) {
+	path := "./testdata/cmc/cmc-nominal.arff"
+
+	f, normalDataset, anomalyDataset := newBoolAndCategoricalForest(t, path)
+
+	anomalyScores := make([]float64, len(anomalyDataset))
+	normalScores := make([]float64, len(normalDataset))
+
+	for i, data := range anomalyDataset {
+		anomalyScores[i] = f.AnomalyScore(data)
+	}
+
+	for i, data := range normalDataset {
+		normalScores[i] = f.AnomalyScore(data)
+	}
+
+	// save scores in a csv file
+	writeCSV(normalScores, anomalyScores)
+}
+
+func newBoolAndCategoricalForest(t *testing.T, path string) (ifcat.Forest, []ifcat.Vector, []ifcat.Vector) {
+	t.Helper()
+
+	const (
+		treeCount        int     = 100
+		subsamplingSize  int     = 256
+		anomalyThreshold float64 = 0.5
+	)
+
+	normset, anomset := parseCMCdata(path)
+	f := ifcat.Forest{}
+	f.AddField("Wifes_education", ifcat.TypeCategorical)
+	f.AddField("Husbands_education", ifcat.TypeCategorical)
+	f.AddField("Wifes_religion", ifcat.TypeCategorical)    // Bool
+	f.AddField("Wifes_now_working", ifcat.TypeCategorical) // Bool
+	f.AddField("Husbands_occupation", ifcat.TypeCategorical)
+	f.AddField("Standard-of-living_index", ifcat.TypeCategorical)
+	f.AddField("Media_exposure", ifcat.TypeCategorical) // Bool
+	f.AddField("Contraceptive_method_used", ifcat.TypeCategorical)
+
+	f.NewForest(treeCount, subsamplingSize, anomalyThreshold)
+	f.Train(normset)
+	return f, normset, anomset
+}
+
+// parseCMCdata returns normalDataset and anomalyDataset
+func parseCMCdata(path string) ([]ifcat.Vector, []ifcat.Vector) {
+	normalDataset := make([]ifcat.Vector, 0, 2000)
+	anomalyDataset := make([]ifcat.Vector, 0, 1000)
+
+	indata := false
+	err := forEachLine(path, func(line string) {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			return
+		}
+		if !indata {
+			if line == "@data" {
+				indata = true
+			}
+			return
+		}
+
+		atts := strings.Split(line, ",")
+		instance := make(ifcat.Vector, 8)
+		for i := range 8 {
+			att := strings.TrimSpace(atts[i])
+
+			if num, err := strconv.Atoi(att); err == nil {
+				instance[i] = float64(num)
+			} else {
+				panic(err)
+			}
+		}
+
+		if class := atts[8]; class == "1" {
+			anomalyDataset = append(anomalyDataset, instance)
+		} else {
+			normalDataset = append(normalDataset, instance)
+		}
+	})
+
+	if err != nil {
+		panic(err)
+	}
+	return normalDataset, anomalyDataset
+}
+
+// -------------------------------------------------------------------
+
 func forEachLine(path string, callback func(line string)) error {
 	file, err := os.Open(path)
 	if err != nil {
@@ -250,7 +343,7 @@ func mustLookup(m map[string]float64, key string) float64 {
 	return v
 }
 
-// writeCSV save scores in a csv file so we can analyze it later using a python script
+// writeCSV save scores in scores.csv so we can analyze it later using external tools,
 func writeCSV(nomalScores []float64, anomalyScores []float64) {
 	file, err := os.Create("scores.csv")
 	if err != nil {
