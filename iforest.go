@@ -32,7 +32,8 @@ func (f *Forest) SetAnomalyThreshold(a float64) {
 	f.scoreThreshold = a
 }
 
-// AddField adds one field to globalSchema. This method is not thread safe.
+// AddField adds one field to the current forest.
+// The order in which fields are added must match the order in Vector.
 func (f *Forest) AddField(name string, attrType AttributeType) {
 	if f.NameToIdx == nil {
 		f.NameToIdx = make(Schema)
@@ -56,7 +57,7 @@ func (f *Forest) AddField(name string, attrType AttributeType) {
 	f.IdxToName[nextIndex] = meta
 }
 
-// NewForest initializes and returns an empty Forest ready for training.
+// Init initializes the isolation forest. Calling this method is a prerequisite for executing the Train method.
 //
 // The t parameter specifies the total number of isolation trees to be created
 // within the forest.
@@ -69,7 +70,7 @@ func (f *Forest) AddField(name string, attrType AttributeType) {
 // The threshold defines the decision threshold for the final anomaly score.
 // If a calculated score is smaller than this value, the instance is likely
 // to be classified as a normal data point.
-func (f *Forest) NewForest(t int, subsamplingSize int, threshold float64) {
+func (f *Forest) Init(t int, subsamplingSize int, threshold float64) {
 	// Initialize Forest
 	heightLimit := math.Ceil(math.Log2(float64(subsamplingSize)))
 
@@ -89,6 +90,7 @@ func (f *Forest) NewForest(t int, subsamplingSize int, threshold float64) {
 func (f *Forest) Train(trainSet []Vector) {
 	n := len(trainSet)
 
+	// TODO: concurrent
 	for i := range f.treeCount {
 		indices := rand.Perm(n)
 		samples := make([]Vector, f.subsamplingSize)

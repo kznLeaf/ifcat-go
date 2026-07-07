@@ -46,7 +46,7 @@ func newTwoNumericalVariablesForest(t *testing.T) ifcat.Forest {
 	forest.AddField("X", ifcat.TypeNumerical)
 	forest.AddField("Y", ifcat.TypeNumerical)
 
-	forest.NewForest(treeCount, subsamplingSize, anomalyThreshold)
+	forest.Init(treeCount, subsamplingSize, anomalyThreshold)
 	forest.Train(data)
 
 	return forest
@@ -92,7 +92,6 @@ func generateNumericalData(nInliers int, nOutliers int) []ifcat.Vector {
 func TestForest_AnomalyScore_CategoricalVariables(t *testing.T) {
 	path := "./testdata/car_evaluation/car.data"
 	// Train forest based on car_evaluation normalDataset
-	// The normalDataset returned here is used for both training and later testing
 	f, normalDataset, anomalyDataset := newCategoricalVariablesForest(t, path)
 
 	anomalyScores := make([]float64, len(anomalyDataset))
@@ -161,7 +160,7 @@ func newCategoricalVariablesForest(t *testing.T, path string) (ifcat.Forest, []i
 	f.AddField("lug_boot", ifcat.TypeCategorical)
 	f.AddField("safety", ifcat.TypeCategorical)
 
-	f.NewForest(treeCount, subsamplingSize, anomalyThreshold)
+	f.Init(treeCount, subsamplingSize, anomalyThreshold)
 	f.Train(normalDataset)
 
 	return f, normalDataset, anomalyDataset
