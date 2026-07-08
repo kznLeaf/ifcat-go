@@ -226,31 +226,91 @@ func parseCarEvaluationData(path string) ([]ifcat.Vector, []ifcat.Vector) {
 	return normalDataset, anomalyDataset
 }
 
-func forEachLine(path string, callback func(line string)) error {
-	file, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		callback(scanner.Text())
-	}
-
-	return scanner.Err()
-}
+// -------------------------------------------------------------------
 
 func TestKdd99_10(t *testing.T) {
-	nor, ano := parseKDDCupData("./testdata/kdd99/kddcup.data_10_percent.txt")
-	for i := range 20 {
-		t.Log(nor[i])
-	}
-	t.Log("---------------------------------------------------")
-	for i := range 20 {
-		t.Log(ano[i])
+	path := "./testdata/kdd99/kddcup.data_10_percent.txt"
+	// Train forest based on full dataset
+	f, normalDataset, anomalyDataset := newKDDCupForest(t, path)
+
+	anomalyScores := make([]float64, len(anomalyDataset))
+	normalScores := make([]float64, len(normalDataset))
+
+	for i, data := range anomalyDataset {
+		anomalyScores[i] = f.AnomalyScore(data)
 	}
 
+	for i, data := range normalDataset {
+		normalScores[i] = f.AnomalyScore(data)
+	}
+
+	// save scores in a csv file
+	writeCSV(normalScores, anomalyScores)
+}
+
+func newKDDCupForest(t *testing.T, path string) (ifcat.Forest, []ifcat.Vector, []ifcat.Vector) {
+	t.Helper()
+
+	const (
+		treeCount        int     = 100
+		subsamplingSize  int     = 256
+		anomalyThreshold float64 = 0.5
+	)
+
+	normalDataset, anomalyDataset := parseKDDCupData(path)
+
+	fullDataset := make([]ifcat.Vector, 0, len(normalDataset)+len(anomalyDataset))
+	fullDataset = append(fullDataset, normalDataset...)
+	fullDataset = append(fullDataset, anomalyDataset...)
+
+	f := ifcat.Forest{}
+
+	f.AddField("duration", ifcat.TypeNumerical)
+	f.AddField("protocol_type", ifcat.TypeCategorical)
+	f.AddField("service", ifcat.TypeCategorical)
+	f.AddField("flag", ifcat.TypeCategorical)
+	f.AddField("src_bytes", ifcat.TypeNumerical)
+	f.AddField("dst_bytes", ifcat.TypeNumerical)
+	f.AddField("land", ifcat.TypeBool)
+	f.AddField("wrong_fragment", ifcat.TypeNumerical)
+	f.AddField("urgent", ifcat.TypeNumerical)
+	f.AddField("hot", ifcat.TypeNumerical)
+	f.AddField("num_failed_logins", ifcat.TypeNumerical)
+	f.AddField("logged_in", ifcat.TypeBool)
+	f.AddField("num_compromised", ifcat.TypeNumerical)
+	f.AddField("root_shell", ifcat.TypeNumerical)
+	f.AddField("su_attempted", ifcat.TypeNumerical)
+	f.AddField("num_root", ifcat.TypeNumerical)
+	f.AddField("num_file_creations", ifcat.TypeNumerical)
+	f.AddField("num_shells", ifcat.TypeNumerical)
+	f.AddField("num_access_files", ifcat.TypeNumerical)
+	f.AddField("num_outbound_cmds", ifcat.TypeNumerical)
+	f.AddField("is_host_login", ifcat.TypeBool)
+	f.AddField("is_guest_login", ifcat.TypeBool)
+	f.AddField("count", ifcat.TypeNumerical)
+	f.AddField("srv_count", ifcat.TypeNumerical)
+	f.AddField("serror_rate", ifcat.TypeNumerical)
+	f.AddField("srv_serror_rate", ifcat.TypeNumerical)
+	f.AddField("rerror_rate", ifcat.TypeNumerical)
+	f.AddField("srv_rerror_rate", ifcat.TypeNumerical)
+	f.AddField("same_srv_rate", ifcat.TypeNumerical)
+	f.AddField("diff_srv_rate", ifcat.TypeNumerical)
+	f.AddField("srv_diff_host_rate", ifcat.TypeNumerical)
+	f.AddField("dst_host_count", ifcat.TypeNumerical)
+	f.AddField("dst_host_srv_count", ifcat.TypeNumerical)
+	f.AddField("dst_host_same_srv_rate", ifcat.TypeNumerical)
+	f.AddField("dst_host_diff_srv_rate", ifcat.TypeNumerical)
+	f.AddField("dst_host_same_src_port_rate", ifcat.TypeNumerical)
+	f.AddField("dst_host_srv_diff_host_rate", ifcat.TypeNumerical)
+	f.AddField("dst_host_serror_rate", ifcat.TypeNumerical)
+	f.AddField("dst_host_srv_serror_rate", ifcat.TypeNumerical)
+	f.AddField("dst_host_rerror_rate", ifcat.TypeNumerical)
+	f.AddField("dst_host_srv_rerror_rate", ifcat.TypeNumerical)
+
+	f.Init(treeCount, subsamplingSize, anomalyThreshold)
+	f.Train(fullDataset)
+
+	return f, normalDataset, anomalyDataset
 }
 
 // parseKDDCupData reads KDDCup99 records, normalizes continuous features to [0,1],
@@ -397,6 +457,21 @@ func parseKDDCupData(path string) ([]ifcat.Vector, []ifcat.Vector) {
 	}
 
 	return normalDataset, anomalyDataset
+}
+
+func forEachLine(path string, callback func(line string)) error {
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		callback(scanner.Text())
+	}
+
+	return scanner.Err()
 }
 
 func mustLookup(m map[string]float64, key string) float64 {
