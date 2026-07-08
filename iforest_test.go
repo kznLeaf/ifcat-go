@@ -236,6 +236,8 @@ func TestKdd99_10(t *testing.T) {
 	anomalyScores := make([]float64, len(anomalyDataset))
 	normalScores := make([]float64, len(normalDataset))
 
+	t.Logf("anomaly samples: %v, normal samples: %v", len(anomalyDataset), len(normalDataset))
+
 	for i, data := range anomalyDataset {
 		anomalyScores[i] = f.AnomalyScore(data)
 	}
@@ -259,9 +261,9 @@ func newKDDCupForest(t *testing.T, path string) (ifcat.Forest, []ifcat.Vector, [
 
 	normalDataset, anomalyDataset := parseKDDCupData(path)
 
-	fullDataset := make([]ifcat.Vector, 0, len(normalDataset)+len(anomalyDataset))
-	fullDataset = append(fullDataset, normalDataset...)
-	fullDataset = append(fullDataset, anomalyDataset...)
+	// fullDataset := make([]ifcat.Vector, 0, len(normalDataset)+len(anomalyDataset))
+	// fullDataset = append(fullDataset, normalDataset...)
+	// fullDataset = append(fullDataset, anomalyDataset...)
 
 	f := ifcat.Forest{}
 
@@ -308,7 +310,7 @@ func newKDDCupForest(t *testing.T, path string) (ifcat.Forest, []ifcat.Vector, [
 	f.AddField("dst_host_srv_rerror_rate", ifcat.TypeNumerical)
 
 	f.Init(treeCount, subsamplingSize, anomalyThreshold)
-	f.Train(fullDataset)
+	f.Train(normalDataset)
 
 	return f, normalDataset, anomalyDataset
 }
