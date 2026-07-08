@@ -226,6 +226,241 @@ func parseCarEvaluationData(path string) ([]ifcat.Vector, []ifcat.Vector) {
 	return normalDataset, anomalyDataset
 }
 
+// -------------------------------------------------------------------
+
+func TestKdd99_10(t *testing.T) {
+	path := "./testdata/kdd99/kddcup.data_10_percent.txt"
+	// Train forest based on full dataset
+	f, normalDataset, anomalyDataset := newKDDCupForest(t, path)
+
+	anomalyScores := make([]float64, len(anomalyDataset))
+	normalScores := make([]float64, len(normalDataset))
+
+	t.Logf("anomaly samples: %v, normal samples: %v", len(anomalyDataset), len(normalDataset))
+
+	for i, data := range anomalyDataset {
+		anomalyScores[i] = f.AnomalyScore(data)
+	}
+
+	for i, data := range normalDataset {
+		normalScores[i] = f.AnomalyScore(data)
+	}
+
+	// save scores in a csv file
+	writeCSV(normalScores, anomalyScores)
+}
+
+func newKDDCupForest(t *testing.T, path string) (ifcat.Forest, []ifcat.Vector, []ifcat.Vector) {
+	t.Helper()
+
+	const (
+		treeCount        int     = 100
+		subsamplingSize  int     = 256
+		anomalyThreshold float64 = 0.5
+	)
+
+	normalDataset, anomalyDataset := parseKDDCupData(path)
+
+	// fullDataset := make([]ifcat.Vector, 0, len(normalDataset)+len(anomalyDataset))
+	// fullDataset = append(fullDataset, normalDataset...)
+	// fullDataset = append(fullDataset, anomalyDataset...)
+
+	f := ifcat.Forest{}
+
+	f.AddField("duration", ifcat.TypeNumerical)
+	f.AddField("protocol_type", ifcat.TypeCategorical)
+	f.AddField("service", ifcat.TypeCategorical)
+	f.AddField("flag", ifcat.TypeCategorical)
+	f.AddField("src_bytes", ifcat.TypeNumerical)
+	f.AddField("dst_bytes", ifcat.TypeNumerical)
+	f.AddField("land", ifcat.TypeBool)
+	f.AddField("wrong_fragment", ifcat.TypeNumerical)
+	f.AddField("urgent", ifcat.TypeNumerical)
+	f.AddField("hot", ifcat.TypeNumerical)
+	f.AddField("num_failed_logins", ifcat.TypeNumerical)
+	f.AddField("logged_in", ifcat.TypeBool)
+	f.AddField("num_compromised", ifcat.TypeNumerical)
+	f.AddField("root_shell", ifcat.TypeNumerical)
+	f.AddField("su_attempted", ifcat.TypeNumerical)
+	f.AddField("num_root", ifcat.TypeNumerical)
+	f.AddField("num_file_creations", ifcat.TypeNumerical)
+	f.AddField("num_shells", ifcat.TypeNumerical)
+	f.AddField("num_access_files", ifcat.TypeNumerical)
+	f.AddField("num_outbound_cmds", ifcat.TypeNumerical)
+	f.AddField("is_host_login", ifcat.TypeBool)
+	f.AddField("is_guest_login", ifcat.TypeBool)
+	f.AddField("count", ifcat.TypeNumerical)
+	f.AddField("srv_count", ifcat.TypeNumerical)
+	f.AddField("serror_rate", ifcat.TypeNumerical)
+	f.AddField("srv_serror_rate", ifcat.TypeNumerical)
+	f.AddField("rerror_rate", ifcat.TypeNumerical)
+	f.AddField("srv_rerror_rate", ifcat.TypeNumerical)
+	f.AddField("same_srv_rate", ifcat.TypeNumerical)
+	f.AddField("diff_srv_rate", ifcat.TypeNumerical)
+	f.AddField("srv_diff_host_rate", ifcat.TypeNumerical)
+	f.AddField("dst_host_count", ifcat.TypeNumerical)
+	f.AddField("dst_host_srv_count", ifcat.TypeNumerical)
+	f.AddField("dst_host_same_srv_rate", ifcat.TypeNumerical)
+	f.AddField("dst_host_diff_srv_rate", ifcat.TypeNumerical)
+	f.AddField("dst_host_same_src_port_rate", ifcat.TypeNumerical)
+	f.AddField("dst_host_srv_diff_host_rate", ifcat.TypeNumerical)
+	f.AddField("dst_host_serror_rate", ifcat.TypeNumerical)
+	f.AddField("dst_host_srv_serror_rate", ifcat.TypeNumerical)
+	f.AddField("dst_host_rerror_rate", ifcat.TypeNumerical)
+	f.AddField("dst_host_srv_rerror_rate", ifcat.TypeNumerical)
+
+	f.Init(treeCount, subsamplingSize, anomalyThreshold)
+	f.Train(normalDataset)
+
+	return f, normalDataset, anomalyDataset
+}
+
+// parseKDDCupData reads KDDCup99 records, normalizes continuous features to [0,1],
+// encodes symbolic features as categorical values. Only "normal" label is treated
+// as nomral.
+//
+// Returns normal dateset and anomaly dataset.
+func parseKDDCupData(path string) ([]ifcat.Vector, []ifcat.Vector) {
+	const featureCount = 41
+
+	normalDataset := make([]ifcat.Vector, 0, 10000)
+	anomalyDataset := make([]ifcat.Vector, 0, 10000)
+
+	// KDDCup99 symbolic fields
+	symbolicIdx := map[int]struct{}{
+		1:  {}, // protocol_type
+		2:  {}, // service
+		3:  {}, // flag
+		6:  {}, // land
+		11: {}, // logged_in
+		20: {}, // is_host_login
+		21: {}, // is_guest_login
+	}
+
+	isSymbolic := func(idx int) bool {
+		_, ok := symbolicIdx[idx]
+		return ok
+	}
+
+	type rawRow struct {
+		values []string
+		label  string
+	}
+
+	rows := make([]rawRow, 0, 10000)
+
+	minVals := make([]float64, featureCount)
+	maxVals := make([]float64, featureCount)
+	initialized := make([]bool, featureCount)
+
+	// each categorical attribute holds its own map
+	categoricalEncoders := make(map[int]map[string]float64)
+
+	// ---------- numerical min/max ----------
+	err := forEachLine(path, func(line string) {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			return
+		}
+
+		atts := strings.Split(line, ",")
+		if len(atts) != featureCount+1 {
+			panic(fmt.Sprintf("invalid KDD row: got %d columns, want %d, line=%q",
+				len(atts), featureCount+1, line))
+		}
+
+		for i := range atts {
+			atts[i] = strings.TrimSpace(atts[i])
+		}
+
+		label := strings.TrimSuffix(atts[featureCount], ".")
+		rowValues := atts[:featureCount]
+
+		rows = append(rows, rawRow{
+			values: rowValues,
+			label:  label,
+		})
+
+		for i := range featureCount {
+			if isSymbolic(i) {
+				continue
+			}
+
+			v, err := strconv.ParseFloat(rowValues[i], 64)
+			if err != nil {
+				panic(fmt.Sprintf("invalid numerical value at col %d: %q, line=%q",
+					i, rowValues[i], line))
+			}
+
+			if !initialized[i] {
+				minVals[i] = v
+				maxVals[i] = v
+				initialized[i] = true
+				continue
+			}
+
+			if v < minVals[i] {
+				minVals[i] = v
+			}
+			if v > maxVals[i] {
+				maxVals[i] = v
+			}
+		}
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	// ---------- normalize continous data; encode categorical data ----------
+	for _, row := range rows {
+		instance := make(ifcat.Vector, featureCount)
+
+		for i := range featureCount {
+			raw := row.values[i]
+
+			if isSymbolic(i) {
+				encoder := categoricalEncoders[i]
+				if encoder == nil {
+					encoder = make(map[string]float64)
+					categoricalEncoders[i] = encoder
+				}
+
+				code, ok := encoder[raw]
+				if !ok {
+					code = float64(len(encoder))
+					encoder[raw] = code
+				}
+
+				instance[i] = code
+				continue
+			}
+
+			v, err := strconv.ParseFloat(raw, 64)
+			if err != nil {
+				panic(fmt.Sprintf("invalid numerical value at col %d: %q", i, raw))
+			}
+
+			minVal := minVals[i]
+			maxVal := maxVals[i]
+
+			// normalize to [0, 1]
+			if maxVal == minVal {
+				instance[i] = 0
+			} else {
+				instance[i] = (v - minVal) / (maxVal - minVal)
+			}
+		}
+
+		if row.label == "normal" {
+			normalDataset = append(normalDataset, instance)
+		} else {
+			anomalyDataset = append(anomalyDataset, instance)
+		}
+	}
+
+	return normalDataset, anomalyDataset
+}
+
 func forEachLine(path string, callback func(line string)) error {
 	file, err := os.Open(path)
 	if err != nil {
