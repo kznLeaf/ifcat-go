@@ -109,7 +109,6 @@ func (f *Forest) Train(trainSet []Vector) {
 func (f *Forest) AnomalyScore(x Vector) float64 {
 	plSum := 0.0
 	for _, tree := range f.trees {
-		// TODO: accelerate using goroutines
 		root := tree.root
 		plSum += f.pathLength(x, root, 0)
 	}
