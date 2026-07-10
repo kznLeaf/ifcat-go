@@ -461,6 +461,134 @@ func parseKDDCupData(path string) ([]ifcat.Vector, []ifcat.Vector) {
 	return normalDataset, anomalyDataset
 }
 
+// -------------------------------------------------------------------
+
+func TestMushroom(t *testing.T) {
+	path := "./testdata/mushroom/agaricus-lepiota.data"
+	// Train forest based on car_evaluation normalDataset
+	f, normalDataset, anomalyDataset := newMushroomForest(t, path)
+
+	anomalyScores := make([]float64, len(anomalyDataset))
+	normalScores := make([]float64, len(normalDataset))
+
+	for i, data := range anomalyDataset {
+		anomalyScores[i] = f.AnomalyScore(data)
+	}
+
+	for i, data := range normalDataset {
+		normalScores[i] = f.AnomalyScore(data)
+	}
+
+	// save scores in a csv file
+	writeCSV(normalScores, anomalyScores)
+}
+
+func newMushroomForest(t *testing.T, path string) (ifcat.Forest, []ifcat.Vector, []ifcat.Vector) {
+	t.Helper()
+
+	const (
+		treeCount        int     = 100
+		subsamplingSize  int     = 256
+		anomalyThreshold float64 = 0.5
+	)
+
+	normalDataset, anomalyDataset := parseMushroomData(path)
+
+	f := ifcat.Forest{}
+
+	f.AddField("cap_shape", ifcat.TypeCategorical)
+	f.AddField("cap_surface", ifcat.TypeCategorical)
+	f.AddField("cap_color", ifcat.TypeCategorical)
+	f.AddField("bruises", ifcat.TypeCategorical)
+	f.AddField("odor", ifcat.TypeCategorical)
+	f.AddField("gill_attachment", ifcat.TypeCategorical)
+	f.AddField("gill_spacing", ifcat.TypeCategorical)
+	f.AddField("gill_size", ifcat.TypeCategorical)
+	f.AddField("gill_color", ifcat.TypeCategorical)
+	f.AddField("stalk_shape", ifcat.TypeCategorical)
+	f.AddField("stalk_root", ifcat.TypeCategorical)
+	f.AddField("stalk_surface_above_ring", ifcat.TypeCategorical)
+	f.AddField("stalk_surface_below_ring", ifcat.TypeCategorical)
+	f.AddField("stalk_color_above_ring", ifcat.TypeCategorical)
+	f.AddField("stalk_color_below_ring", ifcat.TypeCategorical)
+	f.AddField("veil_type", ifcat.TypeCategorical)
+	f.AddField("veil_color", ifcat.TypeCategorical)
+	f.AddField("ring_number", ifcat.TypeCategorical)
+	f.AddField("ring_type", ifcat.TypeCategorical)
+	f.AddField("spore_print_color", ifcat.TypeCategorical)
+	f.AddField("population", ifcat.TypeCategorical)
+	f.AddField("habitat", ifcat.TypeCategorical)
+
+	f.Init(treeCount, subsamplingSize, anomalyThreshold)
+	f.Train(normalDataset)
+
+	return f, normalDataset, anomalyDataset
+}
+
+func parseMushroomData(path string) ([]ifcat.Vector, []ifcat.Vector) {
+	// total 8124 samples
+	normalDataset := make([]ifcat.Vector, 0, 4500)
+	anomalyDataset := make([]ifcat.Vector, 0, 4000)
+
+	featureMaps := []map[string]float64{
+		0:  {"b": 0, "c": 1, "x": 2, "f": 3, "k": 4, "s": 5},                                                   // cap-shape
+		1:  {"f": 0, "g": 1, "y": 2, "s": 3},                                                                   // cap-surface
+		2:  {"n": 0, "b": 1, "c": 2, "g": 3, "r": 4, "p": 5, "u": 6, "e": 7, "w": 8, "y": 9},                   // cap-color
+		3:  {"t": 0, "f": 1},                                                                                   // bruises?
+		4:  {"a": 0, "l": 1, "c": 2, "y": 3, "f": 4, "m": 5, "n": 6, "p": 7, "s": 8},                           // odor
+		5:  {"a": 0, "d": 1, "f": 2, "n": 3},                                                                   // gill-attachment
+		6:  {"c": 0, "w": 1, "d": 2},                                                                           // gill-spacing
+		7:  {"b": 0, "n": 1},                                                                                   // gill-size
+		8:  {"k": 0, "n": 1, "b": 2, "h": 3, "g": 4, "r": 5, "o": 6, "p": 7, "u": 8, "e": 9, "w": 10, "y": 11}, // gill-color
+		9:  {"e": 0, "t": 1},                                                                                   // stalk-shape
+		10: {"b": 0, "c": 1, "u": 2, "e": 3, "z": 4, "r": 5, "?": 6},                                           // stalk-root
+		11: {"f": 0, "y": 1, "k": 2, "s": 3},                                                                   // stalk-surface-above-ring
+		12: {"f": 0, "y": 1, "k": 2, "s": 3},                                                                   // stalk-surface-below-ring
+		13: {"n": 0, "b": 1, "c": 2, "g": 3, "o": 4, "p": 5, "e": 6, "w": 7, "y": 8},                           // stalk-color-above-ring
+		14: {"n": 0, "b": 1, "c": 2, "g": 3, "o": 4, "p": 5, "e": 6, "w": 7, "y": 8},                           // stalk-color-below-ring
+		15: {"p": 0, "u": 1},                                                                                   // veil-type
+		16: {"n": 0, "o": 1, "w": 2, "y": 3},                                                                   // veil-color
+		17: {"n": 0, "o": 1, "t": 2},                                                                           // ring-number
+		18: {"c": 0, "e": 1, "f": 2, "l": 3, "n": 4, "p": 5, "s": 6, "z": 7},                                   // ring-type
+		19: {"k": 0, "n": 1, "b": 2, "h": 3, "r": 4, "o": 5, "u": 6, "w": 7, "y": 8},                           // spore-print-color
+		20: {"a": 0, "c": 1, "n": 2, "s": 3, "v": 4, "y": 5},                                                   // population
+		21: {"g": 0, "l": 1, "m": 2, "p": 3, "u": 4, "w": 5, "d": 6},                                           // habitat
+	}
+
+	err := forEachLine(path, func(line string) {
+		atts := strings.Split(line, ",")
+
+		class := strings.TrimSpace(atts[0])
+
+		instance := make(ifcat.Vector, 22)
+
+		for i := range 22 {
+			att := strings.TrimSpace(atts[i+1])
+
+			if mapping, exists := featureMaps[i][att]; exists {
+				instance[i] = mapping
+			} else {
+				panic("invalid attribute")
+			}
+		}
+
+		// anomaly: poisonous
+		if class == "e" {
+			normalDataset = append(normalDataset, instance)
+		} else {
+			anomalyDataset = append(anomalyDataset, instance)
+		}
+	})
+
+	if err != nil {
+		panic(err)
+	}
+
+	return normalDataset, anomalyDataset
+}
+
+// -------------------------------------------------------------------
+
 func forEachLine(path string, callback func(line string)) error {
 	file, err := os.Open(path)
 	if err != nil {

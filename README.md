@@ -11,15 +11,23 @@ In order to measure the performance of each algorithm, on a single dataset, we r
 ### Car Evaluation
 
 - Source: https://archive.ics.uci.edu/dataset/19/car+evaluation
-- Instances: 1275(class acc and class good are excluded)
+- Instances: 1,275(class acc and class good are excluded)
   - class labels: unacc(normal), vgood(anomaly). Train the model on unacc, then evaluate it on the full dataset.
   - attributes: 0 Num, 6 Cat.
-- Average AUC: 0.999452
+- Average AUC: 0.9994
 
 ### KDD Cup 1999 (10% subset)
 
 - Source: https://www.kdd.org/kdd-cup/view/kdd-cup-1999/Data
-- Instances: 494020
-  - class labels: normal(97277), rest(396743). Train the model on normal, then evaluate on the full dataset.
+- Instances: 494,020
+  - class labels: normal(97,277), rest(396,743). Train the model on normal, then evaluate on the full dataset.
   - attributes: 33 Num, 7 Cat.
-- Average AUC: 0.951648
+- Average AUC: 0.9516
+
+### Mushroom
+
+- Source: https://archive.ics.uci.edu/dataset/73/mushroom
+- Instances: 8,124
+  - class labels: e(4,208), p(3,916). Train the model on "e", then evaluate on the full dataset. The missing value in stalk-root is marked as "?".
+  - attributes: 0 Num, 22 Cat.
+- Average AUC: 0.9094
