@@ -92,7 +92,8 @@ func generateNumericalData(nInliers int, nOutliers int) []ifcat.Vector {
 func TestForest_AnomalyScore_CategoricalVariables(t *testing.T) {
 	path := "./testdata/car_evaluation/car.data"
 	// Train forest based on car_evaluation normalDataset
-	f, normalDataset, anomalyDataset := newCategoricalVariablesForest(t, path)
+	f, normalDataset, anomalyDataset := newCategoricalVariablesForest(path)
+	t.Log("Train finished")
 
 	anomalyScores := make([]float64, len(anomalyDataset))
 	normalScores := make([]float64, len(normalDataset))
@@ -107,39 +108,21 @@ func TestForest_AnomalyScore_CategoricalVariables(t *testing.T) {
 
 	// save scores in a csv file
 	writeCSV(normalScores, anomalyScores)
-
-	// Prediction stage: iterate on whole dataset, compute TP, FP and FN
-	// var TP, FP, FN int
-	//
-	// for i := range normalDataset {
-	// 	score := f.AnomalyScore(normalDataset[i])
-	// 	t.Logf("score: %v\n", score)
-	// 	predictIsVgood := f.Predict(normalDataset[i])
-	// 	actualIsVgood := anomalyDataset[i]
-	// 	if predictIsVgood && actualIsVgood {
-	// 		TP += 1
-	// 	}
-	// 	if predictIsVgood && !actualIsVgood {
-	// 		FP += 1
-	// 	}
-	// 	if !predictIsVgood && actualIsVgood {
-	// 		FN += 1
-	// 	}
-	// }
-	//
-	// t.Logf("TP: %v, FP: %v, FN: %v\n", TP, FP, FN)
-	//
-	// precision := float64(TP) / (float64(TP) + float64(FP))
-	// recall := float64(TP) / (float64(TP) + float64((FN)))
-	// f1Score := 2 * precision * recall / (precision + recall)
-	//
-	// t.Logf("Precision: %v\n", precision)
-	// t.Logf("Recall: %v\n", recall)
-	// t.Logf("F1 Score: %v\n", f1Score)
 }
 
-func newCategoricalVariablesForest(t *testing.T, path string) (ifcat.Forest, []ifcat.Vector, []ifcat.Vector) {
-	t.Helper()
+func BenchmarkCar(b *testing.B) {
+	path := "./testdata/car_evaluation/car.data"
+
+	f, _, anomalyDataset := newCategoricalVariablesForest(path)
+
+	b.ResetTimer()
+	for b.Loop() {
+		// 6000 ns/op
+		f.AnomalyScore(anomalyDataset[0])
+	}
+}
+
+func newCategoricalVariablesForest(path string) (ifcat.Forest, []ifcat.Vector, []ifcat.Vector) {
 
 	const (
 		treeCount        int     = 100

@@ -3,7 +3,9 @@ package ifcat
 import (
 	"math"
 	"math/rand"
+	"runtime"
 	"slices"
+	"sync"
 )
 
 // Euler is an Euler's constant as described in algorithm specification
@@ -107,15 +109,54 @@ func (f *Forest) Train(trainSet []Vector) {
 // If instances have anomaly score close to 1, then they are anomalies.
 // If instances have anomaly score close to zero, then they are inliers.
 func (f *Forest) AnomalyScore(x Vector) float64 {
-	plSum := 0.0
-	for _, tree := range f.trees {
-		// TODO: accelerate using goroutines
-		root := tree.root
-		plSum += f.pathLength(x, root, 0)
+	// AnomalyScore closes done channel when it returns
+	done := make(chan struct{})
+	defer close(done)
+
+	indices := make(chan int)
+	go func() {
+		defer close(indices)
+		for i := range f.treeCount {
+			indices <- i
+		}
+	}()
+	// There is no need to wait for indices.
+	// Just produce and consume indices simultaneously
+
+	var wg sync.WaitGroup
+	resChan := make(chan float64)
+	// Start a fixed number of goroutines to calculate path lengths
+	numConsumers := runtime.GOMAXPROCS(0)
+	wg.Add(numConsumers)
+	for range numConsumers {
+		go func() {
+			// consume indices
+			for idx := range indices {
+				select {
+				case resChan <- f.pathLength(x, f.trees[idx].root, 0):
+				case <-done:
+					return
+				}
+			}
+			wg.Done()
+		}()
 	}
+
+	go func() {
+		wg.Wait()
+		close(resChan)
+	}()
+
+	plSum := 0.0
+	for length := range resChan {
+		plSum += length
+	}
+
 	avg := plSum / float64(len(f.trees))
+
 	exponent := -1 * avg / averagePathLength(f.subsamplingSize)
 	s := math.Pow(2, exponent)
+
 	// TODO: remove panic
 	if s < 0 || s > 1 {
 		panic("invalid anomaly score")
