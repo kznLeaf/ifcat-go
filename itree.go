@@ -38,7 +38,7 @@ func buildNode(X []Vector, e int, l int, ls localSchema) *Node {
 		return &Node{Size: len(X)}
 	}
 
-	q := randAtt(ls.IdxToName)
+	q := randAtt(ls.idxToName)
 	Xl, Xr, splitValue := filter(X, q, ls)
 	if len(Xl) == 0 || len(Xr) == 0 {
 		return &Node{Size: len(X)}
@@ -63,7 +63,7 @@ func randAtt(m map[int]AttributeMeta) AttributeMeta {
 //
 // returns the sub-dataset for left tree, right tree and the SplitValue on current inNode.
 func filter(X []Vector, q AttributeMeta, ls localSchema) ([]Vector, []Vector, []float64) {
-	attIdx, ok := ls.NameToIdx[q]
+	attIdx, ok := ls.nameToIdx[q]
 	if !ok {
 		panic("unknown split attribute")
 	}

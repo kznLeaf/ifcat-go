@@ -23,26 +23,25 @@ type Forest struct {
 }
 
 type localSchema struct {
-	// NameToIdx maps each attribute metadata to its slice index
-	NameToIdx map[AttributeMeta]int
-	// IdxToName provides an lookup to efficiently select
+	// nameToIdx maps each attribute metadata to its slice index
+	nameToIdx map[AttributeMeta]int
+	// idxToName provides an lookup to efficiently select
 	// a random attribute during node splitting
-	IdxToName map[int]AttributeMeta
+	idxToName map[int]AttributeMeta
 }
 
 func (f *Forest) SetAnomalyThreshold(a float64) {
 	f.scoreThreshold = a
 }
 
-// AddField adds one field to the current forest.
-// The order in which fields are added must match the order in Vector.
+// AddField appends one field to the local schema of the current forest.
 func (f *Forest) AddField(name string, attrType AttributeType) {
-	if f.NameToIdx == nil {
-		f.NameToIdx = make(Schema)
+	if f.nameToIdx == nil {
+		f.nameToIdx = make(Schema)
 	}
 
-	if f.IdxToName == nil {
-		f.IdxToName = make(map[int]AttributeMeta)
+	if f.idxToName == nil {
+		f.idxToName = make(map[int]AttributeMeta)
 	}
 
 	meta := AttributeMeta{
@@ -50,13 +49,37 @@ func (f *Forest) AddField(name string, attrType AttributeType) {
 		Type: attrType,
 	}
 
-	if _, exists := f.NameToIdx[meta]; exists {
+	if _, exists := f.nameToIdx[meta]; exists {
 		return
 	}
 
-	nextIndex := len(f.NameToIdx)
-	f.NameToIdx[meta] = nextIndex
-	f.IdxToName[nextIndex] = meta
+	nextIndex := len(f.nameToIdx)
+	f.nameToIdx[meta] = nextIndex
+	f.idxToName[nextIndex] = meta
+}
+
+// RegisterFields registers multiple attributes into the forest configuration.
+// Calling RegisterFields multiple times will overwrite any existing field configurations.
+//
+// The order in which fields are added must strictly match the column
+// ordering of the input dataset Vectors, as the underlying model relies on
+// fixed index mapping to determine the specific data type.
+func (f *Forest) RegisterFields(fields []AttributeMeta) {
+	if f.nameToIdx == nil {
+		f.nameToIdx = make(Schema)
+	}
+
+	if f.idxToName == nil {
+		f.idxToName = make(map[int]AttributeMeta)
+	}
+
+	for i, attr := range fields {
+		if _, exists := f.nameToIdx[attr]; exists {
+			continue
+		}
+		f.nameToIdx[attr] = i
+		f.idxToName[i] = attr
+	}
 }
 
 // Init initializes the isolation forest. Calling this method is a prerequisite for executing the Train method.
@@ -88,7 +111,8 @@ func (f *Forest) Init(t int, subsamplingSize int, threshold float64) {
 	f.scoreThreshold = threshold
 }
 
-// Train creates the collection of trees in the forest.
+// Train builds the Isolation Forest model using the provided trainSet.
+// AddFields and Init must be called prior to invoking this function.
 func (f *Forest) Train(trainSet []Vector) {
 	n := len(trainSet)
 
@@ -156,7 +180,7 @@ func (f *Forest) pathLength(x Vector, t *Node, e float64) float64 {
 	// inNode
 	att := t.SplitAtt
 	// access localSchema from f
-	attIdx, ok := f.NameToIdx[att]
+	attIdx, ok := f.nameToIdx[att]
 	if !ok {
 		panic("unknown split attribute")
 	}

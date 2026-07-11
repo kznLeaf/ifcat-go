@@ -4,7 +4,7 @@ Go implementation of the Isolation Forest algorithm with support for Categorical
 
 This is basically a golang implementation of the algorithm in [Extending Isolation Forest to support non-numerical data](https://github.com/SinaDBMS/IsolationForest) from Sina Barghidarian. Text features are are not supported for now.
 
-## Installattion
+## Installation
 
 Go 1.22+
 
@@ -29,19 +29,23 @@ Take car_evaluation for example:
 	normalDataset, anomalyDataset := parseCarEvaluationData("./car.data")
 
 	// Define the schema for the forest. Each forest has its local schema.
-	// Crucial: Fields must be added in the exact same order as they appear in the dataset.
+	// Fields must be added in the exact same order as they appear in the dataset.
 	// Currently supported data types:
+    // 
 	// - TypeNumerical:   Continuous numeric values.
 	// - TypeCategorical: Discrete values from a finite set.
 	// - TypeBool:        A specialized categorical type, applicable when values are restricted to 0 or 1.
-    // Mixed types are supported.
+    // 
+    // Mixed types are also supported.
 	f := ifcat.Forest{}
-	f.AddField("buying", ifcat.TypeCategorical)
-	f.AddField("maint", ifcat.TypeCategorical)
-	f.AddField("doors", ifcat.TypeCategorical)
-	f.AddField("persons", ifcat.TypeCategorical)
-	f.AddField("lug_boot", ifcat.TypeCategorical)
-	f.AddField("safety", ifcat.TypeCategorical)
+    f.RegisterFields([]ifcat.AttributeMeta{
+		{"buying", ifcat.TypeCategorical},
+		{"maint", ifcat.TypeCategorical},
+		{"doors", ifcat.TypeCategorical},
+		{"persons", ifcat.TypeCategorical},
+		{"lug_boot", ifcat.TypeCategorical},
+		{"safety", ifcat.TypeCategorical},
+	})
 
 	// Initialize the forest with the number of trees, subsampling size, and anomaly threshold.
 	f.Init(treeCount, subsamplingSize, anomalyThreshold)
@@ -70,7 +74,7 @@ Take car_evaluation for example:
 
 ## Experimental results
 
-In order to measure the performance of each algorithm, on a single dataset, we run it 10 times with different initial states and report the average of AUC.
+In order to measure the performance of each algorithm, on a single dataset, we run it 10 times with different initial states and report the average of ROC-AUC.
 
 ### Car Evaluation
 
@@ -78,7 +82,7 @@ In order to measure the performance of each algorithm, on a single dataset, we r
 - Instances: 1,275(class acc and class good are excluded)
   - class labels: unacc(normal, 70.023%), vgood(anomaly, 3.762%). Train the model on unacc, then evaluate it on the full dataset.
   - attributes: 0 Num, 6 Cat.
-- Average AUC: 0.9994
+- Average ROC-AUC: 0.9994
 
 ### KDD Cup 1999 (10% subset)
 
@@ -86,7 +90,7 @@ In order to measure the performance of each algorithm, on a single dataset, we r
 - Instances: 494,020
   - class labels: normal(97,277), rest(396,743). Train the model on normal, then evaluate on the full dataset.
   - attributes: 33 Num, 7 Cat.
-- Average AUC: 0.9516
+- Average ROC-AUC: 0.9516
 
 ### Mushroom
 
@@ -94,4 +98,4 @@ In order to measure the performance of each algorithm, on a single dataset, we r
 - Instances: 8,124
   - class labels: e(4,208), p(3,916). Train the model on "e", then evaluate on the full dataset. The missing value in stalk-root is marked as "?".
   - attributes: 0 Num, 22 Cat.
-- Average AUC: 0.9094
+- Average ROC-AUC: 0.9094

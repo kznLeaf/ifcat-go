@@ -35,12 +35,15 @@ func BenchmarkCarTrain(b *testing.B) {
 	normalDataset, _ := parseCarEvaluationData("./testdata/car_evaluation/car.data")
 
 	f := ifcat.Forest{}
-	f.AddField("buying", ifcat.TypeCategorical)
-	f.AddField("maint", ifcat.TypeCategorical)
-	f.AddField("doors", ifcat.TypeCategorical)
-	f.AddField("persons", ifcat.TypeCategorical)
-	f.AddField("lug_boot", ifcat.TypeCategorical)
-	f.AddField("safety", ifcat.TypeCategorical)
+
+	f.RegisterFields([]ifcat.AttributeMeta{
+		{"buying", ifcat.TypeCategorical},
+		{"maint", ifcat.TypeCategorical},
+		{"doors", ifcat.TypeCategorical},
+		{"persons", ifcat.TypeCategorical},
+		{"lug_boot", ifcat.TypeCategorical},
+		{"safety", ifcat.TypeCategorical},
+	})
 
 	f.Init(treeCount, subsamplingSize, anomalyThreshold)
 
@@ -195,47 +198,49 @@ func newKDDCupForest(t *testing.T, path string) (ifcat.Forest, []ifcat.Vector, [
 
 	f := ifcat.Forest{}
 
-	f.AddField("duration", ifcat.TypeNumerical)
-	f.AddField("protocol_type", ifcat.TypeCategorical)
-	f.AddField("service", ifcat.TypeCategorical)
-	f.AddField("flag", ifcat.TypeCategorical)
-	f.AddField("src_bytes", ifcat.TypeNumerical)
-	f.AddField("dst_bytes", ifcat.TypeNumerical)
-	f.AddField("land", ifcat.TypeBool)
-	f.AddField("wrong_fragment", ifcat.TypeNumerical)
-	f.AddField("urgent", ifcat.TypeNumerical)
-	f.AddField("hot", ifcat.TypeNumerical)
-	f.AddField("num_failed_logins", ifcat.TypeNumerical)
-	f.AddField("logged_in", ifcat.TypeBool)
-	f.AddField("num_compromised", ifcat.TypeNumerical)
-	f.AddField("root_shell", ifcat.TypeNumerical)
-	f.AddField("su_attempted", ifcat.TypeNumerical)
-	f.AddField("num_root", ifcat.TypeNumerical)
-	f.AddField("num_file_creations", ifcat.TypeNumerical)
-	f.AddField("num_shells", ifcat.TypeNumerical)
-	f.AddField("num_access_files", ifcat.TypeNumerical)
-	f.AddField("num_outbound_cmds", ifcat.TypeNumerical)
-	f.AddField("is_host_login", ifcat.TypeBool)
-	f.AddField("is_guest_login", ifcat.TypeBool)
-	f.AddField("count", ifcat.TypeNumerical)
-	f.AddField("srv_count", ifcat.TypeNumerical)
-	f.AddField("serror_rate", ifcat.TypeNumerical)
-	f.AddField("srv_serror_rate", ifcat.TypeNumerical)
-	f.AddField("rerror_rate", ifcat.TypeNumerical)
-	f.AddField("srv_rerror_rate", ifcat.TypeNumerical)
-	f.AddField("same_srv_rate", ifcat.TypeNumerical)
-	f.AddField("diff_srv_rate", ifcat.TypeNumerical)
-	f.AddField("srv_diff_host_rate", ifcat.TypeNumerical)
-	f.AddField("dst_host_count", ifcat.TypeNumerical)
-	f.AddField("dst_host_srv_count", ifcat.TypeNumerical)
-	f.AddField("dst_host_same_srv_rate", ifcat.TypeNumerical)
-	f.AddField("dst_host_diff_srv_rate", ifcat.TypeNumerical)
-	f.AddField("dst_host_same_src_port_rate", ifcat.TypeNumerical)
-	f.AddField("dst_host_srv_diff_host_rate", ifcat.TypeNumerical)
-	f.AddField("dst_host_serror_rate", ifcat.TypeNumerical)
-	f.AddField("dst_host_srv_serror_rate", ifcat.TypeNumerical)
-	f.AddField("dst_host_rerror_rate", ifcat.TypeNumerical)
-	f.AddField("dst_host_srv_rerror_rate", ifcat.TypeNumerical)
+	f.RegisterFields([]ifcat.AttributeMeta{
+		{"duration", ifcat.TypeNumerical},
+		{"protocol_type", ifcat.TypeCategorical},
+		{"service", ifcat.TypeCategorical},
+		{"flag", ifcat.TypeCategorical},
+		{"src_bytes", ifcat.TypeNumerical},
+		{"dst_bytes", ifcat.TypeNumerical},
+		{"land", ifcat.TypeBool},
+		{"wrong_fragment", ifcat.TypeNumerical},
+		{"urgent", ifcat.TypeNumerical},
+		{"hot", ifcat.TypeNumerical},
+		{"num_failed_logins", ifcat.TypeNumerical},
+		{"logged_in", ifcat.TypeBool},
+		{"num_compromised", ifcat.TypeNumerical},
+		{"root_shell", ifcat.TypeNumerical},
+		{"su_attempted", ifcat.TypeNumerical},
+		{"num_root", ifcat.TypeNumerical},
+		{"num_file_creations", ifcat.TypeNumerical},
+		{"num_shells", ifcat.TypeNumerical},
+		{"num_access_files", ifcat.TypeNumerical},
+		{"num_outbound_cmds", ifcat.TypeNumerical},
+		{"is_host_login", ifcat.TypeBool},
+		{"is_guest_login", ifcat.TypeBool},
+		{"count", ifcat.TypeNumerical},
+		{"srv_count", ifcat.TypeNumerical},
+		{"serror_rate", ifcat.TypeNumerical},
+		{"srv_serror_rate", ifcat.TypeNumerical},
+		{"rerror_rate", ifcat.TypeNumerical},
+		{"srv_rerror_rate", ifcat.TypeNumerical},
+		{"same_srv_rate", ifcat.TypeNumerical},
+		{"diff_srv_rate", ifcat.TypeNumerical},
+		{"srv_diff_host_rate", ifcat.TypeNumerical},
+		{"dst_host_count", ifcat.TypeNumerical},
+		{"dst_host_srv_count", ifcat.TypeNumerical},
+		{"dst_host_same_srv_rate", ifcat.TypeNumerical},
+		{"dst_host_diff_srv_rate", ifcat.TypeNumerical},
+		{"dst_host_same_src_port_rate", ifcat.TypeNumerical},
+		{"dst_host_srv_diff_host_rate", ifcat.TypeNumerical},
+		{"dst_host_serror_rate", ifcat.TypeNumerical},
+		{"dst_host_srv_serror_rate", ifcat.TypeNumerical},
+		{"dst_host_rerror_rate", ifcat.TypeNumerical},
+		{"dst_host_srv_rerror_rate", ifcat.TypeNumerical},
+	})
 
 	f.Init(treeCount, subsamplingSize, anomalyThreshold)
 	f.Train(normalDataset)
@@ -424,28 +429,30 @@ func newMushroomForest(t *testing.T, path string) (ifcat.Forest, []ifcat.Vector,
 
 	f := ifcat.Forest{}
 
-	f.AddField("cap_shape", ifcat.TypeCategorical)
-	f.AddField("cap_surface", ifcat.TypeCategorical)
-	f.AddField("cap_color", ifcat.TypeCategorical)
-	f.AddField("bruises", ifcat.TypeCategorical)
-	f.AddField("odor", ifcat.TypeCategorical)
-	f.AddField("gill_attachment", ifcat.TypeCategorical)
-	f.AddField("gill_spacing", ifcat.TypeCategorical)
-	f.AddField("gill_size", ifcat.TypeCategorical)
-	f.AddField("gill_color", ifcat.TypeCategorical)
-	f.AddField("stalk_shape", ifcat.TypeCategorical)
-	f.AddField("stalk_root", ifcat.TypeCategorical)
-	f.AddField("stalk_surface_above_ring", ifcat.TypeCategorical)
-	f.AddField("stalk_surface_below_ring", ifcat.TypeCategorical)
-	f.AddField("stalk_color_above_ring", ifcat.TypeCategorical)
-	f.AddField("stalk_color_below_ring", ifcat.TypeCategorical)
-	f.AddField("veil_type", ifcat.TypeCategorical)
-	f.AddField("veil_color", ifcat.TypeCategorical)
-	f.AddField("ring_number", ifcat.TypeCategorical)
-	f.AddField("ring_type", ifcat.TypeCategorical)
-	f.AddField("spore_print_color", ifcat.TypeCategorical)
-	f.AddField("population", ifcat.TypeCategorical)
-	f.AddField("habitat", ifcat.TypeCategorical)
+	f.RegisterFields([]ifcat.AttributeMeta{
+		{"cap_shape", ifcat.TypeCategorical},
+		{"cap_surface", ifcat.TypeCategorical},
+		{"cap_color", ifcat.TypeCategorical},
+		{"bruises", ifcat.TypeCategorical},
+		{"odor", ifcat.TypeCategorical},
+		{"gill_attachment", ifcat.TypeCategorical},
+		{"gill_spacing", ifcat.TypeCategorical},
+		{"gill_size", ifcat.TypeCategorical},
+		{"gill_color", ifcat.TypeCategorical},
+		{"stalk_shape", ifcat.TypeCategorical},
+		{"stalk_root", ifcat.TypeCategorical},
+		{"stalk_surface_above_ring", ifcat.TypeCategorical},
+		{"stalk_surface_below_ring", ifcat.TypeCategorical},
+		{"stalk_color_above_ring", ifcat.TypeCategorical},
+		{"stalk_color_below_ring", ifcat.TypeCategorical},
+		{"veil_type", ifcat.TypeCategorical},
+		{"veil_color", ifcat.TypeCategorical},
+		{"ring_number", ifcat.TypeCategorical},
+		{"ring_type", ifcat.TypeCategorical},
+		{"spore_print_color", ifcat.TypeCategorical},
+		{"population", ifcat.TypeCategorical},
+		{"habitat", ifcat.TypeCategorical},
+	})
 
 	f.Init(treeCount, subsamplingSize, anomalyThreshold)
 	f.Train(normalDataset)
