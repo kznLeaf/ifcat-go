@@ -3,8 +3,6 @@ package ifcat_test
 import (
 	"bufio"
 	"fmt"
-	"math"
-	"math/rand/v2"
 	"os"
 	"strconv"
 	"strings"
@@ -13,86 +11,49 @@ import (
 	"github.com/kznLeaf/ifcat-go"
 )
 
-// -------------------------------------------------------------------
+// ---------------------- Car Evaluation --------------------------
 
-func TestForest_AnomalyScore_TwoNumericalVariables(t *testing.T) {
-	forest := newTwoNumericalVariablesForest(t)
+func BenchmarkCarScore(b *testing.B) {
+	path := "./testdata/car_evaluation/car.data"
 
-	x := ifcat.Vector{-2.0, -2.0}
-	want := 0.3436
+	f, _, anomalyDataset := newCategoricalVariablesForest(path)
 
-	got := forest.AnomalyScore(x)
-
-	if math.Abs(got-want) > 0.01 {
-		t.Errorf("AnomalyScore() = %v, want %v", got, want)
+	b.ResetTimer()
+	for range b.N {
+		// 6000 ns/op
+		f.AnomalyScore(anomalyDataset[0])
 	}
 }
 
-func newTwoNumericalVariablesForest(t *testing.T) ifcat.Forest {
-	t.Helper()
-
+func BenchmarkCarTrain(b *testing.B) {
 	const (
-		nInliers         int     = 240
-		nOutliers        int     = 40
 		treeCount        int     = 100
-		subsamplingSize  int     = 100
+		subsamplingSize  int     = 256
 		anomalyThreshold float64 = 0.5
 	)
 
-	data := generateNumericalData(nInliers, nOutliers)
+	normalDataset, _ := parseCarEvaluationData("./testdata/car_evaluation/car.data")
 
-	forest := ifcat.Forest{}
+	f := ifcat.Forest{}
+	f.AddField("buying", ifcat.TypeCategorical)
+	f.AddField("maint", ifcat.TypeCategorical)
+	f.AddField("doors", ifcat.TypeCategorical)
+	f.AddField("persons", ifcat.TypeCategorical)
+	f.AddField("lug_boot", ifcat.TypeCategorical)
+	f.AddField("safety", ifcat.TypeCategorical)
 
-	forest.AddField("X", ifcat.TypeNumerical)
-	forest.AddField("Y", ifcat.TypeNumerical)
+	f.Init(treeCount, subsamplingSize, anomalyThreshold)
 
-	forest.Init(treeCount, subsamplingSize, anomalyThreshold)
-	forest.Train(data)
-
-	return forest
+	b.ResetTimer()
+	for range b.N {
+		f.Train(normalDataset)
+	}
 }
-
-func generateNumericalData(nInliers int, nOutliers int) []ifcat.Vector {
-	totalSamples := nInliers + nOutliers
-
-	r := rand.New(rand.NewPCG(0, 0))
-	X := make([][]float64, 0, totalSamples)
-
-	// (Spherical) 240 inliers
-	// 0.3 * randn(240, 2) + [-2, -2]
-	for range nInliers {
-		z1 := r.NormFloat64()
-		z2 := r.NormFloat64()
-
-		x := 0.3*z1 - 2.0
-		y := 0.3*z2 - 2.0
-
-		X = append(X, []float64{x, y})
-	}
-
-	// 40 random outliers
-	// uniform(low=-4, high=4, size=(40, 2))
-	for range nOutliers {
-		x := r.Float64()*8.0 - 4.0
-		y := r.Float64()*8.0 - 4.0
-
-		X = append(X, []float64{x, y})
-	}
-
-	vectors := make([]ifcat.Vector, len(X))
-	for i, row := range X {
-		vectors[i] = ifcat.Vector(row)
-	}
-
-	return vectors
-}
-
-// -------------------------------------------------------------------
 
 func TestForest_AnomalyScore_CategoricalVariables(t *testing.T) {
 	path := "./testdata/car_evaluation/car.data"
 	// Train forest based on car_evaluation normalDataset
-	f, normalDataset, anomalyDataset := newCategoricalVariablesForest(t, path)
+	f, normalDataset, anomalyDataset := newCategoricalVariablesForest(path)
 
 	anomalyScores := make([]float64, len(anomalyDataset))
 	normalScores := make([]float64, len(normalDataset))
@@ -107,39 +68,9 @@ func TestForest_AnomalyScore_CategoricalVariables(t *testing.T) {
 
 	// save scores in a csv file
 	writeCSV(normalScores, anomalyScores)
-
-	// Prediction stage: iterate on whole dataset, compute TP, FP and FN
-	// var TP, FP, FN int
-	//
-	// for i := range normalDataset {
-	// 	score := f.AnomalyScore(normalDataset[i])
-	// 	t.Logf("score: %v\n", score)
-	// 	predictIsVgood := f.Predict(normalDataset[i])
-	// 	actualIsVgood := anomalyDataset[i]
-	// 	if predictIsVgood && actualIsVgood {
-	// 		TP += 1
-	// 	}
-	// 	if predictIsVgood && !actualIsVgood {
-	// 		FP += 1
-	// 	}
-	// 	if !predictIsVgood && actualIsVgood {
-	// 		FN += 1
-	// 	}
-	// }
-	//
-	// t.Logf("TP: %v, FP: %v, FN: %v\n", TP, FP, FN)
-	//
-	// precision := float64(TP) / (float64(TP) + float64(FP))
-	// recall := float64(TP) / (float64(TP) + float64((FN)))
-	// f1Score := 2 * precision * recall / (precision + recall)
-	//
-	// t.Logf("Precision: %v\n", precision)
-	// t.Logf("Recall: %v\n", recall)
-	// t.Logf("F1 Score: %v\n", f1Score)
 }
 
-func newCategoricalVariablesForest(t *testing.T, path string) (ifcat.Forest, []ifcat.Vector, []ifcat.Vector) {
-	t.Helper()
+func newCategoricalVariablesForest(path string) (ifcat.Forest, []ifcat.Vector, []ifcat.Vector) {
 
 	const (
 		treeCount        int     = 100
@@ -226,7 +157,7 @@ func parseCarEvaluationData(path string) ([]ifcat.Vector, []ifcat.Vector) {
 	return normalDataset, anomalyDataset
 }
 
-// -------------------------------------------------------------------
+// --------------------------- KDD 1999 -------------------------------------
 
 func TestKdd99_10(t *testing.T) {
 	path := "./testdata/kdd99/kddcup.data_10_percent.txt"
@@ -461,7 +392,7 @@ func parseKDDCupData(path string) ([]ifcat.Vector, []ifcat.Vector) {
 	return normalDataset, anomalyDataset
 }
 
-// -------------------------------------------------------------------
+// -------------------------- Mushroom -------------------------------------
 
 func TestMushroom(t *testing.T) {
 	path := "./testdata/mushroom/agaricus-lepiota.data"

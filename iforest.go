@@ -2,8 +2,10 @@ package ifcat
 
 import (
 	"math"
-	"math/rand"
+	"math/rand/v2"
+	"runtime"
 	"slices"
+	"sync"
 )
 
 // Euler is an Euler's constant as described in algorithm specification
@@ -90,15 +92,26 @@ func (f *Forest) Init(t int, subsamplingSize int, threshold float64) {
 func (f *Forest) Train(trainSet []Vector) {
 	n := len(trainSet)
 
-	// TODO: concurrent
+	sem := make(chan struct{}, runtime.GOMAXPROCS(0))
+	var wg sync.WaitGroup
+
 	for i := range f.treeCount {
-		indices := rand.Perm(n)
-		samples := make([]Vector, f.subsamplingSize)
-		for i := range f.subsamplingSize {
-			samples[i] = trainSet[indices[i]]
-		}
-		f.trees[i].Build(samples)
+		wg.Add(1)
+		sem <- struct{}{}
+
+		go func(treeIndex int) {
+			defer wg.Done()
+			defer func() { <-sem }()
+
+			indices := rand.Perm(n)
+			samples := make([]Vector, f.subsamplingSize)
+			for i := range f.subsamplingSize {
+				samples[i] = trainSet[indices[i]]
+			}
+			f.trees[i].Build(samples)
+		}(i)
 	}
+	wg.Wait()
 }
 
 // AnomalyScore computes the average path length of x from the ensemble of trees,
@@ -109,7 +122,6 @@ func (f *Forest) Train(trainSet []Vector) {
 func (f *Forest) AnomalyScore(x Vector) float64 {
 	plSum := 0.0
 	for _, tree := range f.trees {
-		// TODO: accelerate using goroutines
 		root := tree.root
 		plSum += f.pathLength(x, root, 0)
 	}
