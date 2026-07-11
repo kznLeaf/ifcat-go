@@ -1,7 +1,7 @@
 package ifcat
 
 import (
-	"math/rand"
+	"math/rand/v2"
 	"slices"
 )
 
@@ -55,7 +55,7 @@ func buildNode(X []Vector, e int, l int, ls localSchema) *Node {
 
 // randAtt randomly select an attribute q from Q
 func randAtt(m map[int]AttributeMeta) AttributeMeta {
-	return m[rand.Intn(len(m))]
+	return m[rand.IntN(len(m))]
 }
 
 // filter filters the dataset X based on the conditional expression.
@@ -89,7 +89,7 @@ func filter(X []Vector, q AttributeMeta, ls localSchema) ([]Vector, []Vector, []
 				return []Vector{}, []Vector{}, []float64{}
 			} else {
 				// size falls in [1, n - 1], n >= 2
-				size = rand.Intn(len(counts)-1) + 1
+				size = rand.IntN(len(counts)-1) + 1
 			}
 
 			subset := randSubset(counts, size)
@@ -171,7 +171,7 @@ func randSubset(fullSet map[float64]struct{}, size int) []float64 {
 		keys = append(keys, k)
 	}
 	for i := range size {
-		j := rand.Intn(len(keys)-i) + i
+		j := rand.IntN(len(keys)-i) + i
 		keys[i], keys[j] = keys[j], keys[i]
 	}
 	return keys[:size]

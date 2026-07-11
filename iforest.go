@@ -2,8 +2,10 @@ package ifcat
 
 import (
 	"math"
-	"math/rand"
+	"math/rand/v2"
+	"runtime"
 	"slices"
+	"sync"
 )
 
 // Euler is an Euler's constant as described in algorithm specification

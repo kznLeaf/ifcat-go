@@ -12,7 +12,7 @@ In order to measure the performance of each algorithm, on a single dataset, we r
 
 - Source: https://archive.ics.uci.edu/dataset/19/car+evaluation
 - Instances: 1,275(class acc and class good are excluded)
-  - class labels: unacc(normal), vgood(anomaly). Train the model on unacc, then evaluate it on the full dataset.
+  - class labels: unacc(normal, 70.023%), vgood(anomaly, 3.762%). Train the model on unacc, then evaluate it on the full dataset.
   - attributes: 0 Num, 6 Cat.
 - Average AUC: 0.9994
 
