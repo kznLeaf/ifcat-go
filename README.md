@@ -4,6 +4,70 @@ Go implementation of the Isolation Forest algorithm with support for Categorical
 
 This is basically a golang implementation of the algorithm in [Extending Isolation Forest to support non-numerical data](https://github.com/SinaDBMS/IsolationForest) from Sina Barghidarian. Text features are are not supported for now.
 
+## Installattion
+
+Go 1.22+
+
+```sh
+go get -u github.com/kznLeaf/ifcat-go
+```
+
+## Example
+
+Take car_evaluation for example:
+
+```go
+	const (
+		treeCount        int     = 100
+		subsamplingSize  int     = 256
+		anomalyThreshold float64 = 0.5
+	)
+
+	// Convert the dataset into a slice of []ifcat.Vector.
+	// For example, [vhigh,vhigh,2,2,small,low,unacc] is encoded as [3 3 2 2 0 0].
+	// Note: It is recommended to normalize numerical data to the [0, 1] range.
+	normalDataset, anomalyDataset := parseCarEvaluationData("./car.data")
+
+	// Define the schema for the forest. Each forest has its local schema.
+	// Crucial: Fields must be added in the exact same order as they appear in the dataset.
+	// Currently supported data types:
+	// - TypeNumerical:   Continuous numeric values.
+	// - TypeCategorical: Discrete values from a finite set.
+	// - TypeBool:        A specialized categorical type, applicable when values are restricted to 0 or 1.
+    // Mixed types are supported.
+	f := ifcat.Forest{}
+	f.AddField("buying", ifcat.TypeCategorical)
+	f.AddField("maint", ifcat.TypeCategorical)
+	f.AddField("doors", ifcat.TypeCategorical)
+	f.AddField("persons", ifcat.TypeCategorical)
+	f.AddField("lug_boot", ifcat.TypeCategorical)
+	f.AddField("safety", ifcat.TypeCategorical)
+
+	// Initialize the forest with the number of trees, subsampling size, and anomaly threshold.
+	f.Init(treeCount, subsamplingSize, anomalyThreshold)
+
+	// The anomaly threshold can be adjusted at any time.
+	f.SetAnomalyThreshold(0.5)
+
+	// Train the Isolation Forest model on the dataset.
+	f.Train(normalDataset)
+
+	// Calculate scores
+	anomalyScores := make([]float64, len(anomalyDataset))
+	normalScores := make([]float64, len(normalDataset))
+
+	// Calculate anomaly scores for both evaluation and baseline datasets.
+	for i, data := range anomalyDataset {
+		anomalyScores[i] = f.AnomalyScore(data)
+	}
+	for i, data := range normalDataset {
+		normalScores[i] = f.AnomalyScore(data)
+	}
+
+   	// Predict if the data is a anomaly point.
+	var predict = f.Predict(anomalyDataset[0])
+```
+
 ## Experimental results
 
 In order to measure the performance of each algorithm, on a single dataset, we run it 10 times with different initial states and report the average of AUC.

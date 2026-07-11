@@ -79,9 +79,6 @@ func newCategoricalVariablesForest(path string) (ifcat.Forest, []ifcat.Vector, [
 	)
 
 	normalDataset, anomalyDataset := parseCarEvaluationData(path)
-	// for i := range 20 {
-	// 	t.Log(dataset[i])
-	// }
 
 	f := ifcat.Forest{}
 	f.AddField("buying", ifcat.TypeCategorical)
