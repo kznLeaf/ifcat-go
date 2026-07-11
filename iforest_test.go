@@ -11,7 +11,7 @@ import (
 	"github.com/kznLeaf/ifcat-go"
 )
 
-// ---------------------- Car Evaluation ---------------------------------
+// ---------------------- Car Evaluation --------------------------
 
 func BenchmarkCarScore(b *testing.B) {
 	path := "./testdata/car_evaluation/car.data"
@@ -26,7 +26,6 @@ func BenchmarkCarScore(b *testing.B) {
 }
 
 func BenchmarkCarTrain(b *testing.B) {
-
 	const (
 		treeCount        int     = 100
 		subsamplingSize  int     = 256
@@ -158,7 +157,7 @@ func parseCarEvaluationData(path string) ([]ifcat.Vector, []ifcat.Vector) {
 	return normalDataset, anomalyDataset
 }
 
-// -------------------------------------------------------------------
+// --------------------------- KDD 1999 -------------------------------------
 
 func TestKdd99_10(t *testing.T) {
 	path := "./testdata/kdd99/kddcup.data_10_percent.txt"
@@ -393,7 +392,7 @@ func parseKDDCupData(path string) ([]ifcat.Vector, []ifcat.Vector) {
 	return normalDataset, anomalyDataset
 }
 
-// -------------------------------------------------------------------
+// -------------------------- Mushroom -------------------------------------
 
 func TestMushroom(t *testing.T) {
 	path := "./testdata/mushroom/agaricus-lepiota.data"

@@ -92,15 +92,26 @@ func (f *Forest) Init(t int, subsamplingSize int, threshold float64) {
 func (f *Forest) Train(trainSet []Vector) {
 	n := len(trainSet)
 
-	// TODO: concurrent
+	sem := make(chan struct{}, runtime.GOMAXPROCS(0))
+	var wg sync.WaitGroup
+
 	for i := range f.treeCount {
-		indices := rand.Perm(n)
-		samples := make([]Vector, f.subsamplingSize)
-		for i := range f.subsamplingSize {
-			samples[i] = trainSet[indices[i]]
-		}
-		f.trees[i].Build(samples)
+		wg.Add(1)
+		sem <- struct{}{}
+
+		go func(treeIndex int) {
+			defer wg.Done()
+			defer func() { <-sem }()
+
+			indices := rand.Perm(n)
+			samples := make([]Vector, f.subsamplingSize)
+			for i := range f.subsamplingSize {
+				samples[i] = trainSet[indices[i]]
+			}
+			f.trees[i].Build(samples)
+		}(i)
 	}
+	wg.Wait()
 }
 
 // AnomalyScore computes the average path length of x from the ensemble of trees,
