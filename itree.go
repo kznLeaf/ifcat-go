@@ -63,10 +63,7 @@ func randAtt(m map[int]AttributeMeta) AttributeMeta {
 //
 // returns the sub-dataset for left tree, right tree and the SplitValue on current inNode.
 func filter(X []Vector, q AttributeMeta, ls localSchema) ([]Vector, []Vector, []float64) {
-	attIdx, ok := ls.nameToIdx[q]
-	if !ok {
-		panic("unknown split attribute")
-	}
+	attIdx := ls.nameToIdx[q]
 	attType := q.Type
 
 	Xl := make([]Vector, 0, len(X))

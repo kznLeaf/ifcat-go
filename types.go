@@ -1,5 +1,7 @@
 package ifcat
 
+import "errors"
+
 type AttributeType byte
 
 const (
@@ -18,3 +20,5 @@ type AttributeMeta struct {
 
 // Schema defines the attributes for the data
 type Schema map[AttributeMeta]int
+
+var ErrModelNotTrained = errors.New("model not trained")

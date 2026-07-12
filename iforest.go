@@ -19,7 +19,7 @@ type Forest struct {
 	treeCount       int
 	heightLimit     int
 	scoreThreshold  float64
-	// TODO: add a field `trained bool`
+	trained         bool
 }
 
 type localSchema struct {
@@ -28,6 +28,10 @@ type localSchema struct {
 	// idxToName provides an lookup to efficiently select
 	// a random attribute during node splitting
 	idxToName map[int]AttributeMeta
+}
+
+func (f *Forest) Trained() bool {
+	return f.trained
 }
 
 func (f *Forest) SetAnomalyThreshold(a float64) {
@@ -80,6 +84,7 @@ func (f *Forest) RegisterFields(fields []AttributeMeta) {
 		f.nameToIdx[attr] = i
 		f.idxToName[i] = attr
 	}
+	f.trained = false
 }
 
 // Init initializes the isolation forest. Calling this method is a prerequisite for executing the Train method.
@@ -109,6 +114,7 @@ func (f *Forest) Init(t int, subsamplingSize int, threshold float64) {
 	f.treeCount = t
 	f.heightLimit = int(heightLimit)
 	f.scoreThreshold = threshold
+	f.trained = false
 }
 
 // Train builds the Isolation Forest model using the provided trainSet.
@@ -136,6 +142,8 @@ func (f *Forest) Train(trainSet []Vector) {
 		}(i)
 	}
 	wg.Wait()
+
+	f.trained = true
 }
 
 // AnomalyScore computes the average path length of x from the ensemble of trees,
@@ -143,25 +151,38 @@ func (f *Forest) Train(trainSet []Vector) {
 //
 // If instances have anomaly score close to 1, then they are anomalies.
 // If instances have anomaly score close to zero, then they are inliers.
-func (f *Forest) AnomalyScore(x Vector) float64 {
+//
+// Returns ErrModelNotTrained if the model has not been trained yet.
+func (f *Forest) AnomalyScore(x Vector) (float64, error) {
+	if !f.trained {
+		return 0, ErrModelNotTrained
+	}
+
 	plSum := 0.0
 	for _, tree := range f.trees {
 		root := tree.root
-		plSum += f.pathLength(x, root, 0)
+		l, err := f.pathLength(x, root, 0)
+		if err != nil {
+			return 0, err
+		}
+		plSum += l
 	}
 	avg := plSum / float64(len(f.trees))
 	exponent := -1 * avg / averagePathLength(f.subsamplingSize)
 	s := math.Pow(2, exponent)
-	// TODO: remove panic
-	if s < 0 || s > 1 {
-		panic("invalid anomaly score")
-	}
-	return s
+
+	return s, nil
 }
 
 // Predict predicts if instance x is an anomaly point.
-func (f *Forest) Predict(x Vector) bool {
-	return f.AnomalyScore(x) > f.scoreThreshold
+// Returns ErrModelNotTrained if the model has not been trained yet.
+func (f *Forest) Predict(x Vector) (bool, error) {
+	score, err := f.AnomalyScore(x)
+	if err != nil {
+		return false, ErrModelNotTrained
+	}
+
+	return score > f.scoreThreshold, nil
 }
 
 // pathLength computes the path length on one tree
@@ -169,21 +190,16 @@ func (f *Forest) Predict(x Vector) bool {
 //	x: an instance
 //	t: an iTree
 //	e: current path length
-func (f *Forest) pathLength(x Vector, t *Node, e float64) float64 {
+func (f *Forest) pathLength(x Vector, t *Node, e float64) (float64, error) {
 	// external node
 	if t.Left == nil && t.Right == nil {
-		return e + averagePathLength(t.Size)
+		return e + averagePathLength(t.Size), nil
 	}
-	if t.Left == nil || t.Right == nil {
-		panic("invalid tree: internal node has only one child")
-	}
+
 	// inNode
 	att := t.SplitAtt
 	// access localSchema from f
-	attIdx, ok := f.nameToIdx[att]
-	if !ok {
-		panic("unknown split attribute")
-	}
+	attIdx := f.nameToIdx[att]
 	xattv := x[attIdx]
 
 	switch att.Type {
@@ -212,7 +228,8 @@ func (f *Forest) pathLength(x Vector, t *Node, e float64) float64 {
 			}
 		}
 	default:
-		panic("unknown attribute type")
+		// unreachable
+		return 0, nil
 	}
 }
 

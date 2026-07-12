@@ -20,7 +20,6 @@ func BenchmarkCarScore(b *testing.B) {
 
 	b.ResetTimer()
 	for range b.N {
-		// 6000 ns/op
 		f.AnomalyScore(anomalyDataset[0])
 	}
 }
@@ -62,11 +61,11 @@ func TestForest_AnomalyScore_CategoricalVariables(t *testing.T) {
 	normalScores := make([]float64, len(normalDataset))
 
 	for i, data := range anomalyDataset {
-		anomalyScores[i] = f.AnomalyScore(data)
+		anomalyScores[i], _ = f.AnomalyScore(data)
 	}
 
 	for i, data := range normalDataset {
-		normalScores[i] = f.AnomalyScore(data)
+		normalScores[i], _ = f.AnomalyScore(data)
 	}
 
 	// save scores in a csv file
@@ -170,11 +169,11 @@ func TestKdd99_10(t *testing.T) {
 	t.Logf("anomaly samples: %v, normal samples: %v", len(anomalyDataset), len(normalDataset))
 
 	for i, data := range anomalyDataset {
-		anomalyScores[i] = f.AnomalyScore(data)
+		anomalyScores[i], _ = f.AnomalyScore(data)
 	}
 
 	for i, data := range normalDataset {
-		normalScores[i] = f.AnomalyScore(data)
+		normalScores[i], _ = f.AnomalyScore(data)
 	}
 
 	// save scores in a csv file
@@ -405,11 +404,11 @@ func TestMushroom(t *testing.T) {
 	normalScores := make([]float64, len(normalDataset))
 
 	for i, data := range anomalyDataset {
-		anomalyScores[i] = f.AnomalyScore(data)
+		anomalyScores[i], _ = f.AnomalyScore(data)
 	}
 
 	for i, data := range normalDataset {
-		normalScores[i] = f.AnomalyScore(data)
+		normalScores[i], _ = f.AnomalyScore(data)
 	}
 
 	// save scores in a csv file
