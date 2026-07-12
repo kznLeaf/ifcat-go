@@ -60,16 +60,22 @@ Take car_evaluation for example:
 	anomalyScores := make([]float64, len(anomalyDataset))
 	normalScores := make([]float64, len(normalDataset))
 
+   	if !f.Trained() {
+		return
+	}
 	// Calculate anomaly scores for both evaluation and baseline datasets.
 	for i, data := range anomalyDataset {
-		anomalyScores[i] = f.AnomalyScore(data)
+		anomalyScores[i], _ = f.AnomalyScore(data)
 	}
 	for i, data := range normalDataset {
-		normalScores[i] = f.AnomalyScore(data)
+		normalScores[i], _ = f.AnomalyScore(data)
 	}
 
    	// Predict if the data is a anomaly point.
-	var predict = f.Predict(anomalyDataset[0])
+   	predict, err := f.Predict(anomalyDataset[0])
+	if err != nil {
+		panic(err)
+    }
 ```
 
 ## Experimental results
