@@ -74,7 +74,7 @@ Take car_evaluation for example:
 	anomalyScores := make([]float64, len(anomalyDataset))
 	normalScores := make([]float64, len(normalDataset))
 
-   	if !f.Trained() {
+    if !f.Trained() {
 		return
 	}
 	// Calculate anomaly scores for both evaluation and baseline datasets.
@@ -85,10 +85,16 @@ Take car_evaluation for example:
 		normalScores[i], _ = f.AnomalyScore(data)
 	}
 
-   	// Predict if the data is a anomaly point.
-   	predict, err := f.Predict(anomalyDataset[0])
+    // Predict if the data is a anomaly point.
+    predict, err := f.Predict(anomalyDataset[0])
 	if err != nil {
 		panic(err)
+    }
+
+    // You can serialize a forest instance into a gob file,
+    // or load a gob file as a forest instance.
+    if err := ifcat.SaveForestGob("forest.gob", &f); err != nil {
+        panic(err)
     }
 ```
 
