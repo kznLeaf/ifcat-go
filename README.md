@@ -4,6 +4,20 @@ Go implementation of the Isolation Forest algorithm with support for Categorical
 
 This is basically a golang implementation of the algorithm in [Extending Isolation Forest to support non-numerical data](https://github.com/SinaDBMS/IsolationForest) from Sina Barghidarian. Text features are are not supported for now.
 
+## Testing
+
+Quick test run (skips the large KDD Cup 1999 integration test):
+
+```sh
+go test -short ./...
+```
+
+Full test run including KDD Cup 1999. On first run, the test automatically extracts `testdata/kdd99/kddcup.data_10_percent.txt` (~75 MB) from the bundled zip:
+
+```sh
+go test ./...
+```
+
 ## Installation
 
 Go 1.22+
