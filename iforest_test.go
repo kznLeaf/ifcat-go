@@ -159,7 +159,11 @@ func parseCarEvaluationData(path string) ([]ifcat.Vector, []ifcat.Vector) {
 // --------------------------- KDD 1999 -------------------------------------
 
 func TestKdd99_10(t *testing.T) {
-	path := "./testdata/kdd99/kddcup.data_10_percent.txt"
+	if testing.Short() {
+		t.Skip("skipping KDD99 integration test in short mode")
+	}
+
+	path := ensureKDD99Data(t)
 	// Train forest based on full dataset
 	f, normalDataset, anomalyDataset := newKDDCupForest(t, path)
 
