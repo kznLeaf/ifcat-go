@@ -31,71 +31,71 @@ go get -u github.com/kznLeaf/ifcat-go
 Take car_evaluation for example:
 
 ```go
-	const (
-		treeCount        int     = 100
-		subsamplingSize  int     = 256
-		anomalyThreshold float64 = 0.5
-	)
+const (
+	treeCount        int     = 100
+	subsamplingSize  int     = 256
+	anomalyThreshold float64 = 0.5
+)
 
-	// Convert the dataset into a slice of []ifcat.Vector.
-	// For example, [vhigh,vhigh,2,2,small,low,unacc] is encoded as [3 3 2 2 0 0].
-	// Note: It is recommended to normalize numerical data to the [0, 1] range.
-	normalDataset, anomalyDataset := parseCarEvaluationData("./car.data")
+// Convert the dataset into a slice of []ifcat.Vector.
+// For example, [vhigh,vhigh,2,2,small,low,unacc] is encoded as [3 3 2 2 0 0].
+// Note: It is recommended to normalize numerical data to the [0, 1] range.
+normalDataset, anomalyDataset := parseCarEvaluationData("./car.data")
 
-	// Define the schema for the forest. Each forest has its local schema.
-	// Fields must be added in the exact same order as they appear in the dataset.
-	// Currently supported data types:
-    // 
-	// - TypeNumerical:   Continuous numeric values.
-	// - TypeCategorical: Discrete values from a finite set.
-	// - TypeBool:        A specialized categorical type, applicable when values are restricted to 0 or 1.
-    // 
-    // Mixed types are also supported.
-	f := ifcat.Forest{}
-    f.RegisterFields([]ifcat.AttributeMeta{
-		{"buying", ifcat.TypeCategorical},
-		{"maint", ifcat.TypeCategorical},
-		{"doors", ifcat.TypeCategorical},
-		{"persons", ifcat.TypeCategorical},
-		{"lug_boot", ifcat.TypeCategorical},
-		{"safety", ifcat.TypeCategorical},
-	})
+// Define the schema for the forest. Each forest has its local schema.
+// Fields must be added in the exact same order as they appear in the dataset.
+// Currently supported data types:
+// 
+// - TypeNumerical:   Continuous numeric values.
+// - TypeCategorical: Discrete values from a finite set.
+// - TypeBool:        A specialized categorical type, applicable when values are restricted to 0 or 1.
+// 
+// Mixed types are also supported.
+f := ifcat.Forest{}
+f.RegisterFields([]ifcat.AttributeMeta{
+	{"buying", ifcat.TypeCategorical},
+	{"maint", ifcat.TypeCategorical},
+	{"doors", ifcat.TypeCategorical},
+	{"persons", ifcat.TypeCategorical},
+	{"lug_boot", ifcat.TypeCategorical},
+	{"safety", ifcat.TypeCategorical},
+})
 
-	// Initialize the forest with the number of trees, subsampling size, and anomaly threshold.
-	f.Init(treeCount, subsamplingSize, anomalyThreshold)
+// Initialize the forest with the number of trees, subsampling size, and anomaly threshold.
+f.Init(treeCount, subsamplingSize, anomalyThreshold)
 
-	// The anomaly threshold can be adjusted at any time.
-	f.SetAnomalyThreshold(0.5)
+// The anomaly threshold can be adjusted at any time.
+f.SetAnomalyThreshold(0.5)
 
-	// Train the Isolation Forest model on the dataset.
-	f.Train(normalDataset)
+// Train the Isolation Forest model on the dataset.
+f.Train(normalDataset)
 
-	// Calculate scores
-	anomalyScores := make([]float64, len(anomalyDataset))
-	normalScores := make([]float64, len(normalDataset))
+// Calculate scores
+anomalyScores := make([]float64, len(anomalyDataset))
+normalScores := make([]float64, len(normalDataset))
 
-    if !f.Trained() {
-		return
-	}
-	// Calculate anomaly scores for both evaluation and baseline datasets.
-	for i, data := range anomalyDataset {
-		anomalyScores[i], _ = f.AnomalyScore(data)
-	}
-	for i, data := range normalDataset {
-		normalScores[i], _ = f.AnomalyScore(data)
-	}
+if !f.Trained() {
+	return
+}
+// Calculate anomaly scores for both evaluation and baseline datasets.
+for i, data := range anomalyDataset {
+	anomalyScores[i], _ = f.AnomalyScore(data)
+}
+for i, data := range normalDataset {
+	normalScores[i], _ = f.AnomalyScore(data)
+}
 
-    // Predict if the data is a anomaly point.
-    predict, err := f.Predict(anomalyDataset[0])
-	if err != nil {
-		panic(err)
-    }
+// Predict if the data is a anomaly point.
+predict, err := f.Predict(anomalyDataset[0])
+if err != nil {
+	panic(err)
+}
 
-    // You can serialize a forest instance into a gob file,
-    // or load a gob file as a forest instance.
-    if err := ifcat.SaveForestGob("forest.gob", &f); err != nil {
-        panic(err)
-    }
+// You can serialize a forest instance into a gob file,
+// or load a gob file as a forest instance.
+if err := ifcat.SaveForestGob("forest.gob", &f); err != nil {
+    panic(err)
+}
 ```
 
 ## Experimental results
